@@ -29,7 +29,7 @@ assert.equal((await call('/files/f1',{method:'PUT',cookie:one.cookie,bytes:pdf,t
 const ws=await call('/workspace',{cookie:one.cookie});
 const project={id:'p1',code:'PRJ-1',name:'Portão',client:'Cliente',request:'3 m x 1,8 m',created:'2026-11-15T10:00:00.000Z',demo:false,
   fields:{},files:[{id:'f1',name:'pedido.pdf',type:'application/pdf',size:pdf.length,created:'2026-11-15T10:01:00.000Z'}],events:[],memory:[],lines:[],versions:[]};
-assert.equal((await call('/workspace',{method:'PUT',cookie:one.cookie,json:{revision:ws.data.revision,state:{...ws.data.state,projects:[project]}}})).status,200);
+assert.equal((await call('/workspace',{method:'PUT',cookie:one.cookie,json:{revision:ws.data.revision,state:{...ws.data.state,projects:[...ws.data.state.projects,project]}}})).status,200);
 // O administrador vê o pedido e o anexo; a oficina não entra na área de administração.
 assert.equal((await call('/admin/inbox',{cookie:one.cookie})).status,403);
 const inbox=await call('/admin/inbox',{cookie:admin.cookie});
@@ -42,11 +42,11 @@ const sent=await call(`/admin/responses/${item.workshop.id}/p1?name=rascunho.pdf
 assert.equal(sent.status,201);
 assert.equal((await call(`/admin/responses/${item.workshop.id}/nao-existe?note=x`,{method:'PUT',cookie:admin.cookie,bytes:Buffer.alloc(0)})).status,404);
 const mine=await call('/responses',{cookie:one.cookie});
-assert.equal(mine.data.length,1);assert.equal(mine.data[0].note,'Falta a espessura');
+assert.equal(mine.data.length,2);assert.equal(mine.data[1].note,'Falta a espessura');
 assert.deepEqual((await call('/responses/'+sent.data.id,{cookie:one.cookie})).data,pdf);
-assert.equal((await call('/responses',{cookie:two.cookie})).data.length,0);
+assert.equal((await call('/responses',{cookie:two.cookie})).data.length,1);
 assert.equal((await call('/responses/'+sent.data.id,{cookie:two.cookie})).status,404);
 assert.equal((await call('/admin/responses/'+sent.data.id,{method:'DELETE',cookie:admin.cookie})).status,200);
-assert.equal((await call('/responses',{cookie:one.cookie})).data.length,0);
+assert.equal((await call('/responses',{cookie:one.cookie})).data.length,1);
 server.close();
 console.log('PASS: código inicial, demonstração, caixa de pedidos, respostas e isolamento.');

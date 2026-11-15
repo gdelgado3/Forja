@@ -131,8 +131,26 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
   const storageUsed = () => db.prepare('SELECT (SELECT COALESCE(SUM(LENGTH(bytes)),0) FROM attachments)+(SELECT COALESCE(SUM(LENGTH(bytes)),0) FROM responses) AS total').get().total;
   const demoSettings = name => ({company:name,hour:35,markup:25,vat:23,catalog:[
     {label:'Tubo aço 40×40×2 (exemplo)',unit:'m',price:4.5},{label:'Chapa aço 2 mm (exemplo)',unit:'m²',price:28},
-    {label:'Chapa inox 1,5 mm (exemplo)',unit:'m²',price:62},{label:'Lacagem (exemplo)',unit:'m²',price:18},
+    {label:'Chapa inox 2 mm (exemplo)',unit:'m²',price:78},{label:'Acabamento escovado (exemplo)',unit:'m²',price:15},
+    {label:'Lacagem (exemplo)',unit:'m²',price:18},{label:'Corte e quinagem (exemplo)',unit:'h',price:35},
     {label:'Montagem em obra (exemplo)',unit:'h',price:35}]});
+  // Pedido fictício, parecido com os que as oficinas recebem, para a demonstração não começar vazia.
+  const demoProject = () => {
+    const t=time(), id=()=>token().slice(0,16);
+    return {id:'exemplo',code:'PRJ-001',name:'Prateleiras em inox (exemplo)',client:'Cliente de exemplo',channel:'Email',demo:true,status:'Rascunho',created:t,
+      request:'Boa tarde, precisava de um orçamento para 3 prateleiras em inox para uma cozinha. São em L, com 250 mm de profundidade e uma aba de 150 mm. Comprimentos: 1200, 800 e 600 mm. Acabamento escovado. Podem propor a espessura. Obrigado!',
+      fields:{type:'Prateleira em L',material:'Inox',width:'1.2',height:'0.25',quantity:'3',finish:'Escovado'},
+      lines:[
+        {id:id(),desc:'Chapa inox 2 mm, planificada',qty:1.04,unit:'m²',price:78,source:'Aba 150 + profundidade 250 = 400 mm × (1,20 + 0,80 + 0,60) m · espessura proposta, por confirmar'},
+        {id:id(),desc:'Corte e quinagem',qty:2,unit:'h',price:35,source:'Estimativa de demonstração · validar horas'},
+        {id:id(),desc:'Acabamento escovado',qty:1.04,unit:'m²',price:15,source:'Uma face · 1,04 m²'}],
+      markup:25,vat:23,versions:[],files:[],
+      memory:[
+        {id:id(),text:'Espessura não indicada no pedido. Proposta: 2 mm.',kind:'Pendente',source:'Pedido inicial · email (exemplo)',created:t},
+        {id:id(),text:'Fixação à parede não indicada. Perguntar se leva suportes ou furos.',kind:'Pendente',source:'Pedido inicial · email (exemplo)',created:t},
+        {id:id(),text:'Quantidade assumida: uma prateleira de cada comprimento.',kind:'Hipótese',source:'Pedido inicial · sem confirmação',created:t}],
+      events:[{id:id(),text:'Projeto de demonstração criado com pedido e custos fictícios.',source:'Forja · demonstração',created:t}]};
+  };
   const attempts = new Map();
   const sessionLookup = db.prepare(`SELECT u.id,u.email,u.role,u.workshop FROM sessions s JOIN users u ON s.user_id=u.id WHERE s.hash=? AND s.expires>?`);
   const workshopLookup = db.prepare('SELECT * FROM workshops WHERE id=?');
@@ -240,7 +258,9 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
         demoStarts.push(now);
         const id=token(),userId=token(),name='Oficina de demonstração '+id.slice(0,4).toUpperCase();
         transaction(()=>{
-          db.prepare('INSERT INTO workshops (id,name,state,last_use,demo) VALUES(?,?,?,?,1)').run(id,name,JSON.stringify({schema:1,projects:[],settings:demoSettings(name)}),time());
+          db.prepare('INSERT INTO workshops (id,name,state,last_use,demo) VALUES(?,?,?,?,1)').run(id,name,JSON.stringify({schema:1,projects:[demoProject()],settings:demoSettings(name)}),time());
+          db.prepare('INSERT INTO responses VALUES(?,?,?,NULL,NULL,NULL,?,?)').run(token().slice(0,32),id,'exemplo',
+            'Rascunho de exemplo pronto: 3 prateleiras em L, 1,04 m² de chapa inox de 2 mm. Falta saber a espessura e a fixação à parede. Vê o separador 3. Orçamento.',time());
           db.prepare("INSERT INTO users VALUES(?,?,NULL,'workshop',?)").run(userId,`demo-${id.slice(0,16)}@demo.invalid`,id);
         });
         session(res,userId,req);
