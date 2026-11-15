@@ -294,7 +294,7 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
               const responses=sent.filter(r=>r.workshop===o.id && r.project===p.id).map(({workshop,project,...r})=>r);
               const last=[p.created,...p.files.map(f=>f.created)].filter(Boolean).sort().pop()||'';
               items.push({workshop:{id:o.id,name:o.name,demo:!!o.demo},
-                project:{id:p.id,code:p.code,name:p.name,priceCheck:Object.hasOwn({under:1,ok:1,over:1},p.priceCheck)?p.priceCheck:'',client:p.client||'',channel:p.channel||'',request:String(p.request||'').slice(0,6000),created:p.created||'',fields:p.fields},
+                project:{id:p.id,code:p.code,name:p.name,kind:p.kind==='desenho'?'desenho':'',priceCheck:Object.hasOwn({under:1,ok:1,over:1},p.priceCheck)?p.priceCheck:'',client:p.client||'',channel:p.channel||'',request:String(p.request||'').slice(0,6000),created:p.created||'',fields:p.fields},
                 files:p.files.map(f=>({id:f.id,name:String(f.name||'anexo'),type:String(f.type||''),size:Number(f.size)||0,created:f.created||''})),
                 responses,last});
             }

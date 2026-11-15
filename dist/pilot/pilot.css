@@ -74,3 +74,17 @@
 .pilot-feedback-list { list-style:none; padding:0; margin:10px 0 0; display:grid; gap:6px; }
 .pilot-feedback-list li { padding:8px 10px; background:#f5f5f0; border-radius:8px; overflow-wrap:anywhere; }
 .pilot-feedback-list small { display:block; opacity:.7; margin-top:3px; }
+
+.pilot-menu { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin:6px 0 26px; }
+.pilot-menu-card { display:grid; gap:8px; justify-items:start; text-align:left; padding:22px; min-height:150px; border-radius:16px; background:#fff; border:1px solid #e4e7df; cursor:pointer; align-content:start; }
+.pilot-menu-card strong { font-size:1.2rem; color:#22332c; }
+.pilot-menu-card small { font-size:.9rem; line-height:1.35; color:#5d665f; font-weight:400; }
+.pilot-menu-card:hover,.pilot-menu-card:focus-visible { border-color:#214d3b; }
+.pilot-menu-icon { color:#214d3b; background:#d9edbd; border-radius:12px; padding:9px; box-sizing:content-box; }
+.pilot-menu-main { background:#214d3b; border-color:#214d3b; }
+.pilot-menu-main strong { color:#fff; }
+.pilot-menu-main small { color:#d9edbd; }
+#pilot-history h2 { margin-bottom:10px; }
+.pilot-drawing { display:grid; gap:12px; }
+.pilot-tag-drawing { background:#22332c; color:#fff; }
+@media(max-width:760px) { .pilot-menu { grid-template-columns:1fr; } .pilot-menu-card { min-height:0; } }

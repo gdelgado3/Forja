@@ -58,7 +58,7 @@ function inboxHtml() {
     return `<article class="card card-pad pilot-request ${item.responses.length?'':'pilot-waiting'}">
       <header><div><strong>${escape(item.project.code)} · ${escape(item.project.name)}</strong>
       <small>${escape(item.workshop.name)}${item.workshop.demo?' · demonstração':''} · cliente: ${escape(item.project.client||'—')} · ${dateText(item.last)}</small></div>
-      <span class="pilot-tag">${item.responses.length?'Respondido':'Por responder'}${item.project.priceCheck?' · rascunho '+({under:'abaixo',ok:'certo',over:'acima'})[item.project.priceCheck]:''}</span></header>
+      ${item.project.kind==='desenho'?'<span class="pilot-tag pilot-tag-drawing">Desenho técnico</span>':''}<span class="pilot-tag">${item.responses.length?'Respondido':'Por responder'}${item.project.priceCheck?' · rascunho '+({under:'abaixo',ok:'certo',over:'acima'})[item.project.priceCheck]:''}</span></header>
       ${item.project.request?`<details><summary>Pedido em texto</summary><pre>${escape(item.project.request)}</pre></details>`:''}
       <div class="pilot-files">${files||'<small>Sem anexos.</small>'}</div>
       <div class="pilot-drop" data-drop="${key}" tabindex="0" role="button" aria-label="Enviar resposta">

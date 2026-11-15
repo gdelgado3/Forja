@@ -4,12 +4,19 @@ function renderPilotWorkspace() {
   const isDetail=view==='detail';
   const projectsHtml=()=>{
     const filtered=state.projects.filter(p=>(p.name+' '+p.client+' '+p.code).toLowerCase().includes(query.toLowerCase()));
-    return `<div class="heading"><div><h1>Orçamentos</h1><p>Consulta os teus trabalhos ou prepara um novo orçamento.</p></div>
-    <button class="primary" data-action="new">Novo orçamento</button></div>
+    const drawings=state.projects.filter(p=>p.kind==='desenho').length;
+    const icon=d=>`<svg class="pilot-menu-icon" viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+    return `<div class="heading"><div><h1>A tua oficina</h1><p>Do pedido do cliente ao orçamento. Escolhe por onde começar.</p></div></div>
+    <div class="pilot-menu">
+      <button type="button" class="pilot-menu-card pilot-menu-main" data-action="new">${icon('<path d="M12 5v14M5 12h14"/>')}<strong>Novo orçamento</strong><small>Cola o pedido ou junta o desenho e monta o rascunho.</small></button>
+      <button type="button" class="pilot-menu-card" data-pilot-history>${icon('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>')}<strong>Histórico</strong><small>${state.projects.length?state.projects.length+' orçamento(s) guardado(s) nesta oficina.':'Os teus orçamentos ficam guardados aqui.'}</small></button>
+      <button type="button" class="pilot-menu-card" data-pilot-drawing>${icon('<path d="M3 17l14-14 4 4L7 21H3z"/><path d="M14 6l4 4M5 15l2 2M8 12l2 2M11 9l2 2"/>')}<strong>Pedir desenho técnico</strong><small>${drawings?drawings+' pedido(s) de desenho enviado(s).':'Envia a folha de medidas e as fotos e recebe o alçado cotado.'}</small></button>
+    </div>
+    <section id="pilot-history"><h2>Histórico</h2>
     ${state.projects.length?`<div class="toolbar"><input class="field search" id="project-search" placeholder="Procurar projeto ou cliente…" value="${esc(query)}" aria-label="Procurar orçamentos"></div>
     <div class="card table-scroll"><table class="project-list"><thead><tr><th>Projeto / Cliente</th><th>Estado</th><th>Valor sem IVA</th><th>Memória</th><th></th></tr></thead><tbody id="project-rows">${projectRows(filtered)}</tbody></table></div>`:
-    '<section class="card card-pad"><h2>Começa pelo primeiro pedido</h2><p>Junta o pedido e o desenho. Revê os dados e guarda o orçamento nesta oficina.</p><div class="pilot-start"><button class="primary" data-action="new">Criar primeiro orçamento</button><button data-pilot-example>Experimentar com um pedido de exemplo</button></div></section>'}
-    ${state.projects.length&&!state.projects.some(p=>p.id==='exemplo')?'<p class="pilot-example-link"><button class="small" data-pilot-example>Abrir um pedido de exemplo</button></p>':''}`;
+    '<div class="card card-pad"><p>Ainda não há orçamentos. Os que criares ficam guardados aqui, com as versões e a memória de cada obra.</p></div>'}
+    ${state.projects.some(p=>p.id==='exemplo')?'':'<p class="pilot-example-link"><button type="button" class="small" data-pilot-example>Experimentar com um pedido de exemplo</button></p>'}</section>`;
   };
   $('#app').innerHTML=`<div class="pilot-office"><header class="pilot-header no-print"><div class="pilot-brand"><span>f</span> Forja</div>
     <strong>${esc(state.settings.company)}</strong><div class="pilot-header-actions">
@@ -33,7 +40,7 @@ function renderPilotResponses() {
     <small>${when(r.created)}</small></li>`).join('');
   const waiting=current && !current.demo && !list.length && (current.files.length || current.request);
   box.innerHTML=rows?`<div class="card card-pad pilot-answers"><h2>Respostas da Forja</h2><ul>${rows}</ul></div>`:
-    waiting?'<div class="card card-pad pilot-answers"><h2>Pedido recebido</h2><p>A equipa da Forja já consegue ver este pedido. A resposta aparece aqui.</p></div>':'';
+    waiting?(current.kind==='desenho'?'<div class="card card-pad pilot-answers"><h2>Pedido de desenho recebido</h2><p>A equipa da Forja já tem as medidas e as fotos. O desenho técnico aparece aqui.</p></div>':'<div class="card card-pad pilot-answers"><h2>Pedido recebido</h2><p>A equipa da Forja já consegue ver este pedido. A resposta aparece aqui.</p></div>'):'';
 }
 window.renderPilotResponses=renderPilotResponses;
 function pilotCatalogSelect(unit) {
@@ -114,8 +121,40 @@ document.addEventListener('input',event=>{
   if(event.target.id==='pilot-feedback-text')pilotFeedback.text=event.target.value;
 });
 document.addEventListener('click',async event=>{
-  const target=event.target.closest('[data-pilot-example],[data-price-check],[data-feedback-rating],[data-feedback-send],[data-feedback-again]');
+  const target=event.target.closest('[data-pilot-example],[data-price-check],[data-feedback-rating],[data-feedback-send],[data-feedback-again],[data-pilot-history],[data-pilot-drawing],[data-pilot-drawing-send]');
   if(!target)return;
+  if(target.hasAttribute('data-pilot-history')) {document.querySelector('#pilot-history')?.scrollIntoView({behavior:'smooth'});return;}
+  if(target.hasAttribute('data-pilot-drawing')) {
+    modal(`${modalHead('Pedir desenho técnico','Envia a folha de medidas e as fotos do local. A equipa da Forja devolve o alçado cotado nesta página.')}
+      <div class="pilot-drawing">
+      <label>Nome da obra<input class="field" id="pd-name" maxlength="80" placeholder="Ex.: Varanda do 2.º andar"></label>
+      <label>Cliente<input class="field" id="pd-client" maxlength="80"></label>
+      <label>Medidas e notas<textarea class="field" id="pd-notes" rows="4" maxlength="4000" placeholder="Ex.: vão de 4,57 m × 2,70 m, 7 folhas, recolha à direita…"></textarea></label>
+      <label>Folha de medidas e fotos<input class="field" id="pd-files" type="file" multiple accept=".pdf,image/png,image/jpeg,image/webp"></label>
+      <p class="smalltext muted">Até 6 ficheiros (PDF ou imagem), 10 MB cada. Tapa os dados pessoais do cliente.</p>
+      <p id="pd-status" class="pilot-message" role="alert" hidden></p>
+      <div class="pilot-start"><button type="button" class="primary" data-pilot-drawing-send>Pedir desenho</button><button type="button" data-action="close">Cancelar</button></div></div>`);
+    return;
+  }
+  if(target.hasAttribute('data-pilot-drawing-send')) {
+    const status=document.querySelector('#pd-status'),say=text=>{status.hidden=!text;status.textContent=text;};
+    const name=document.querySelector('#pd-name').value.trim(),client=document.querySelector('#pd-client').value.trim();
+    const notes=document.querySelector('#pd-notes').value.trim(),files=[...document.querySelector('#pd-files').files];
+    if(!name||!client)return say('Indica o nome da obra e o cliente.');
+    if(!notes&&!files.length)return say('Escreve as medidas ou junta a folha de medidas.');
+    if(files.length>6)return say('Junta até 6 ficheiros.');
+    if(files.some(f=>f.size>10*1024*1024))return say('Cada ficheiro tem de ter menos de 10 MB.');
+    target.disabled=true;say('A enviar…');
+    try {
+      const saved=[];
+      for(const f of files){const id=uid();await window.forjaPilot.putFile(id,f);saved.push({id,name:f.name,size:f.size,type:f.type,created:now()});}
+      const np={id:uid(),code:nextCode(),name:'Desenho técnico · '+name,client,channel:'Outro',kind:'desenho',request:notes||'Medidas na folha em anexo.',created:now(),demo:false,status:'Rascunho',
+        fields:{type:'Desenho técnico',material:'',width:'',height:'',quantity:'1',finish:''},lines:[],markup:state.settings.markup,vat:state.settings.vat,versions:[],files:saved,memory:[],
+        events:[{id:uid(),text:'Pedido de desenho técnico enviado à Forja.',source:'Oficina',created:now()}]};
+      state.projects.push(np);selected=np.id;view='detail';tab='pedido';closeModal();persist();render();toast('Pedido de desenho enviado.');
+    } catch(e) {say(e.message);target.disabled=false;}
+    return;
+  }
   if(target.hasAttribute('data-pilot-example')) {
     if(!state.projects.some(p=>p.id==='exemplo'))state.projects.push(pilotExampleProject());
     selected='exemplo';view='detail';tab='orcamento';persist();render();
