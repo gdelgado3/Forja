@@ -7,6 +7,7 @@ function renderPilotWorkspace() {
     const drawings=state.projects.filter(p=>p.kind==='desenho').length;
     const icon=d=>`<svg class="pilot-menu-icon" viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
     return `<div class="heading"><div><h1>A tua oficina</h1><p>Do pedido do cliente ao orçamento. Escolhe por onde começar.</p></div></div>
+    ${window.forjaPilot.demo&&!state.projects.some(p=>p.id==='exemplo')?`<button type="button" class="pilot-try-example" data-pilot-example><span class="pilot-try-badge">Começa aqui</span><strong>Experimentar com um pedido de exemplo</strong><small>Abre um pedido já lido pela Forja, com o rascunho do orçamento pronto. Demora 10 segundos.</small><span class="pilot-try-arrow" aria-hidden="true">→</span></button>`:''}
     <div class="pilot-menu">
       <button type="button" class="pilot-menu-card pilot-menu-main" data-action="new">${icon('<path d="M12 5v14M5 12h14"/>')}<strong>Novo orçamento</strong><small>Cola o pedido ou junta o desenho e monta o rascunho.</small></button>
       <button type="button" class="pilot-menu-card" data-pilot-history>${icon('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>')}<strong>Histórico</strong><small>${state.projects.length?state.projects.length+' orçamento(s) guardado(s) nesta oficina.':'Os teus orçamentos ficam guardados aqui.'}</small></button>
@@ -17,7 +18,7 @@ function renderPilotWorkspace() {
     ${state.projects.length?`<div class="toolbar"><input class="field search" id="project-search" placeholder="Procurar projeto ou cliente…" value="${esc(query)}" aria-label="Procurar orçamentos"></div>
     <div class="card table-scroll"><table class="project-list"><thead><tr><th>Projeto / Cliente</th><th>Estado</th><th>Valor sem IVA</th><th>Memória</th><th></th></tr></thead><tbody id="project-rows">${projectRows(filtered)}</tbody></table></div>`:
     '<div class="card card-pad"><p>Ainda não há orçamentos. Os que criares ficam guardados aqui, com as versões e a memória de cada obra.</p></div>'}
-    ${state.projects.some(p=>p.id==='exemplo')?'':'<p class="pilot-example-link"><button type="button" class="small" data-pilot-example>Experimentar com um pedido de exemplo</button></p>'}</section>`;
+    ${window.forjaPilot.demo||state.projects.some(p=>p.id==='exemplo')?'':'<p class="pilot-example-link"><button type="button" class="small" data-pilot-example>Experimentar com um pedido de exemplo</button></p>'}</section>`;
   };
   $('#app').innerHTML=`<div class="pilot-office"><header class="pilot-header no-print"><div class="pilot-brand"><span>f</span> Forja</div>
     <strong>${esc(state.settings.company)}</strong><div class="pilot-header-actions">
