@@ -122,6 +122,7 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
     CREATE TABLE IF NOT EXISTS sessions(hash TEXT PRIMARY KEY,user_id TEXT REFERENCES users(id),expires INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS invites(hash TEXT PRIMARY KEY,user_id TEXT REFERENCES users(id),expires INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS attachments(workshop TEXT REFERENCES workshops(id),id TEXT,mime TEXT,bytes BLOB,PRIMARY KEY(workshop,id));
+    CREATE TABLE IF NOT EXISTS feedback(id TEXT PRIMARY KEY,workshop TEXT REFERENCES workshops(id),rating INTEGER,text TEXT,created TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS responses(id TEXT PRIMARY KEY,workshop TEXT REFERENCES workshops(id),project TEXT NOT NULL,name TEXT,mime TEXT,bytes BLOB,note TEXT,created TEXT NOT NULL);`);
   try { db.exec('ALTER TABLE workshops ADD COLUMN demo INTEGER NOT NULL DEFAULT 0'); } catch { /* coluna já existe */ }
   const setupToken = db.prepare("SELECT 1 FROM users WHERE role='admin'").get() ? null : (setupCode || token());
@@ -134,23 +135,6 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
     {label:'Chapa inox 2 mm (exemplo)',unit:'m²',price:78},{label:'Acabamento escovado (exemplo)',unit:'m²',price:15},
     {label:'Lacagem (exemplo)',unit:'m²',price:18},{label:'Corte e quinagem (exemplo)',unit:'h',price:35},
     {label:'Montagem em obra (exemplo)',unit:'h',price:35}]});
-  // Pedido fictício, parecido com os que as oficinas recebem, para a demonstração não começar vazia.
-  const demoProject = () => {
-    const t=time(), id=()=>token().slice(0,16);
-    return {id:'exemplo',code:'PRJ-001',name:'Prateleiras em inox (exemplo)',client:'Cliente de exemplo',channel:'Email',demo:true,status:'Rascunho',created:t,
-      request:'Boa tarde, precisava de um orçamento para 3 prateleiras em inox para uma cozinha. São em L, com 250 mm de profundidade e uma aba de 150 mm. Comprimentos: 1200, 800 e 600 mm. Acabamento escovado. Podem propor a espessura. Obrigado!',
-      fields:{type:'Prateleira em L',material:'Inox',width:'1.2',height:'0.25',quantity:'3',finish:'Escovado'},
-      lines:[
-        {id:id(),desc:'Chapa inox 2 mm, planificada',qty:1.04,unit:'m²',price:78,source:'Aba 150 + profundidade 250 = 400 mm × (1,20 + 0,80 + 0,60) m · espessura proposta, por confirmar'},
-        {id:id(),desc:'Corte e quinagem',qty:2,unit:'h',price:35,source:'Estimativa de demonstração · validar horas'},
-        {id:id(),desc:'Acabamento escovado',qty:1.04,unit:'m²',price:15,source:'Uma face · 1,04 m²'}],
-      markup:25,vat:23,versions:[],files:[],
-      memory:[
-        {id:id(),text:'Espessura não indicada no pedido. Proposta: 2 mm.',kind:'Pendente',source:'Pedido inicial · email (exemplo)',created:t},
-        {id:id(),text:'Fixação à parede não indicada. Perguntar se leva suportes ou furos.',kind:'Pendente',source:'Pedido inicial · email (exemplo)',created:t},
-        {id:id(),text:'Quantidade assumida: uma prateleira de cada comprimento.',kind:'Hipótese',source:'Pedido inicial · sem confirmação',created:t}],
-      events:[{id:id(),text:'Projeto de demonstração criado com pedido e custos fictícios.',source:'Forja · demonstração',created:t}]};
-  };
   const attempts = new Map();
   const sessionLookup = db.prepare(`SELECT u.id,u.email,u.role,u.workshop FROM sessions s JOIN users u ON s.user_id=u.id WHERE s.hash=? AND s.expires>?`);
   const workshopLookup = db.prepare('SELECT * FROM workshops WHERE id=?');
@@ -258,9 +242,7 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
         demoStarts.push(now);
         const id=token(),userId=token(),name='Oficina de demonstração '+id.slice(0,4).toUpperCase();
         transaction(()=>{
-          db.prepare('INSERT INTO workshops (id,name,state,last_use,demo) VALUES(?,?,?,?,1)').run(id,name,JSON.stringify({schema:1,projects:[demoProject()],settings:demoSettings(name)}),time());
-          db.prepare('INSERT INTO responses VALUES(?,?,?,NULL,NULL,NULL,?,?)').run(token().slice(0,32),id,'exemplo',
-            'Rascunho de exemplo pronto: 3 prateleiras em L, 1,04 m² de chapa inox de 2 mm. Falta saber a espessura e a fixação à parede. Vê o separador 3. Orçamento.',time());
+          db.prepare('INSERT INTO workshops (id,name,state,last_use,demo) VALUES(?,?,?,?,1)').run(id,name,JSON.stringify({schema:1,projects:[],settings:demoSettings(name)}),time());
           db.prepare("INSERT INTO users VALUES(?,?,NULL,'workshop',?)").run(userId,`demo-${id.slice(0,16)}@demo.invalid`,id);
         });
         session(res,userId,req);
@@ -292,6 +274,17 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
           });
           return reply(res,{id,invite},201);
         }
+        if(path==='/api/pilot/admin/feedback' && req.method==='GET') {
+          const items=db.prepare('SELECT f.id,f.rating,f.text,f.created,w.name AS workshop,w.demo FROM feedback f JOIN workshops w ON w.id=f.workshop ORDER BY f.created DESC LIMIT 500').all()
+            .map(f=>({...f,demo:!!f.demo}));
+          const checks={under:0,ok:0,over:0},checked=[];
+          for(const o of db.prepare('SELECT name,demo,state FROM workshops').all()) for(const p of JSON.parse(o.state).projects)
+            if(Object.hasOwn(checks,p.priceCheck)) {
+              checks[p.priceCheck]++;
+              checked.push({workshop:o.name,demo:!!o.demo,project:String(p.code)+' · '+String(p.name),example:!!p.demo,check:p.priceCheck});
+            }
+          return reply(res,{items,checks,checked:checked.slice(0,500)});
+        }
         if(path==='/api/pilot/admin/inbox' && req.method==='GET') {
           const sent=db.prepare('SELECT id,workshop,project,name,mime,LENGTH(bytes) AS size,note,created FROM responses ORDER BY created').all();
           const items=[];
@@ -301,7 +294,7 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
               const responses=sent.filter(r=>r.workshop===o.id && r.project===p.id).map(({workshop,project,...r})=>r);
               const last=[p.created,...p.files.map(f=>f.created)].filter(Boolean).sort().pop()||'';
               items.push({workshop:{id:o.id,name:o.name,demo:!!o.demo},
-                project:{id:p.id,code:p.code,name:p.name,client:p.client||'',channel:p.channel||'',request:String(p.request||'').slice(0,6000),created:p.created||'',fields:p.fields},
+                project:{id:p.id,code:p.code,name:p.name,priceCheck:Object.hasOwn({under:1,ok:1,over:1},p.priceCheck)?p.priceCheck:'',client:p.client||'',channel:p.channel||'',request:String(p.request||'').slice(0,6000),created:p.created||'',fields:p.fields},
                 files:p.files.map(f=>({id:f.id,name:String(f.name||'anexo'),type:String(f.type||''),size:Number(f.size)||0,created:f.created||''})),
                 responses,last});
             }
@@ -368,7 +361,20 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
         const update=db.prepare('UPDATE workshops SET state=?,revision=revision+1,last_use=? WHERE id=? AND revision=?')
           .run(JSON.stringify(input.state),time(),auth.workshop,office.revision);
         requireValue(update.changes===1,'A oficina tem alterações mais recentes.',409);
+        if(input.state.projects.some(p=>p.id==='exemplo' && p.demo) && !db.prepare("SELECT 1 FROM responses WHERE workshop=? AND project='exemplo'").get(auth.workshop))
+          db.prepare('INSERT INTO responses VALUES(?,?,?,NULL,NULL,NULL,?,?)').run(token().slice(0,32),auth.workshop,'exemplo',
+            'Rascunho de exemplo pronto: 3 prateleiras em L, 1,04 m² de chapa inox de 2 mm. Falta saber a espessura e a fixação à parede. Vê o separador 3. Orçamento.',time());
         return reply(res,{revision:office.revision+1});
+      }
+      if(path==='/api/pilot/feedback' && req.method==='POST') {
+        const input=await jsonBody(req);
+        const rating=input.rating==null?null:Number(input.rating);
+        requireValue(rating===null || (Number.isInteger(rating) && rating>=1 && rating<=5),'Escolhe uma nota de 1 a 5.');
+        const note=typeof input.text==='string'?input.text.trim().slice(0,2000):'';
+        requireValue(rating!==null || note,'Escreve o teu feedback ou escolhe uma nota.');
+        requireValue(db.prepare('SELECT COUNT(*) AS n FROM feedback WHERE workshop=?').get(auth.workshop).n<20,'Já recebemos muito feedback desta conta. Obrigado!',429);
+        db.prepare('INSERT INTO feedback VALUES(?,?,?,?,?)').run(token().slice(0,32),auth.workshop,rating,note||null,time());
+        return reply(res,{ok:true},201);
       }
       if(path==='/api/pilot/responses' && req.method==='GET') {
         return reply(res,db.prepare('SELECT id,project,name,mime,LENGTH(bytes) AS size,note,created FROM responses WHERE workshop=? ORDER BY created').all(auth.workshop));

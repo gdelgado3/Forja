@@ -58,7 +58,7 @@ function inboxHtml() {
     return `<article class="card card-pad pilot-request ${item.responses.length?'':'pilot-waiting'}">
       <header><div><strong>${escape(item.project.code)} · ${escape(item.project.name)}</strong>
       <small>${escape(item.workshop.name)}${item.workshop.demo?' · demonstração':''} · cliente: ${escape(item.project.client||'—')} · ${dateText(item.last)}</small></div>
-      <span class="pilot-tag">${item.responses.length?'Respondido':'Por responder'}</span></header>
+      <span class="pilot-tag">${item.responses.length?'Respondido':'Por responder'}${item.project.priceCheck?' · rascunho '+({under:'abaixo',ok:'certo',over:'acima'})[item.project.priceCheck]:''}</span></header>
       ${item.project.request?`<details><summary>Pedido em texto</summary><pre>${escape(item.project.request)}</pre></details>`:''}
       <div class="pilot-files">${files||'<small>Sem anexos.</small>'}</div>
       <div class="pilot-drop" data-drop="${key}" tabindex="0" role="button" aria-label="Enviar resposta">
@@ -74,12 +74,28 @@ function inboxHtml() {
     <p class="muted smalltext">${inboxData.items.length} pedido(s), de todas as oficinas${used}</p>
     ${cards||'<p class="empty">Ainda não chegou nenhum pedido.</p>'}`;
 }
+let feedbackData={items:[],checks:{under:0,ok:0,over:0},checked:[]};
+function feedbackHtml() {
+  const c=feedbackData.checks,rated=feedbackData.items.filter(f=>f.rating);
+  const average=rated.length?(rated.reduce((sum,f)=>sum+f.rating,0)/rated.length).toFixed(1).replace('.',','):'—';
+  const rows=feedbackData.items.map(f=>`<li><strong>${f.rating?f.rating+'/5':'sem nota'}</strong> ${f.text?escape(f.text):'<em>sem texto</em>'}<small>${escape(f.workshop)} · ${dateText(f.created)}</small></li>`).join('');
+  const names={under:'abaixo',ok:'certo',over:'acima'};
+  const checked=feedbackData.checked.map(x=>`<li>${escape(x.project)}${x.example?' (exemplo)':''}: <strong>${names[x.check]}</strong><small>${escape(x.workshop)}</small></li>`).join('');
+  return `<h2>Feedback</h2>
+    <div class="pilot-stats"><div><strong>${feedbackData.items.length}</strong><span>respostas</span></div><div><strong>${average}</strong><span>nota média (1 a 5)</span></div>
+    <div><strong>${c.under}</strong><span>rascunhos abaixo</span></div><div><strong>${c.ok}</strong><span>rascunhos certos</span></div><div><strong>${c.over}</strong><span>rascunhos acima</span></div></div>
+    ${rows?`<ul class="pilot-feedback-list">${rows}</ul>`:'<p class="empty">Ainda não há feedback.</p>'}
+    ${checked?`<details><summary>Rascunhos avaliados (${feedbackData.checked.length})</summary><ul class="pilot-feedback-list">${checked}</ul></details>`:''}`;
+}
 async function refreshInbox(force) {
   const box=document.querySelector('#pilot-inbox');
   if(!box)return;
   if(!force && (box.querySelector('.pilot-dragging') || [...box.querySelectorAll('textarea')].some(t=>t.value) || box.contains(document.activeElement)))return;
   inboxData=await api('/admin/inbox');
   box.innerHTML=inboxHtml();
+  feedbackData=await api('/admin/feedback');
+  const panel=document.querySelector('#pilot-feedback-admin');
+  if(panel)panel.innerHTML=feedbackHtml();
 }
 async function sendResponse(zone,file) {
   const status=zone.querySelector('.pilot-drop-status'),note=zone.querySelector('textarea').value.trim();
@@ -140,6 +156,7 @@ async function admin(link='') {
   officeList=everyOffice.filter(w=>!w.demo);
   const demos=everyOffice.length-officeList.length;
   inboxData=await api('/admin/inbox');
+  feedbackData=await api('/admin/feedback');
   const rows=officeList.map(w=>`<tr><td><strong>${escape(w.name)}</strong><small>${escape(w.email)} · ${w.active?'Ativa':'Por ativar'}</small></td>
     <td>${w.lastUse?escape(new Date(w.lastUse).toLocaleString('pt-PT')):'—'}</td>
     <td>${w.requests}</td><td>${w.drafts}</td><td>${w.savedQuotes}</td><td>${w.accepted}</td>
@@ -148,6 +165,7 @@ async function admin(link='') {
   root.innerHTML=`<main class="pilot-admin"><header class="pilot-header"><div class="pilot-brand"><span>f</span> Forja</div><button data-pilot-action="logout">Sair</button></header>
     <p id="pilot-message" class="pilot-message" role="alert" hidden></p>
     <section id="pilot-inbox">${inboxHtml()}</section>
+    <section id="pilot-feedback-admin" class="card card-pad">${feedbackHtml()}</section>
     <h1>Utilização por oficina</h1><p>Projetos guardados e última atividade registada no servidor.${demos?` Contas de demonstração abertas: ${demos}.`:''}</p>
     ${link?`<section class="card card-pad pilot-invite"><h2>Convite da oficina</h2><p>Partilha este link com a oficina. Fica válido durante três dias.</p><input class="field" id="pilot-invite-link" value="${escape(link)}" readonly aria-label="Link do convite"><button type="button" data-pilot-action="copy">Copiar link</button><p id="pilot-copied" role="status"></p></section>`:''}
     <section class="card table-scroll"><table class="project-list"><thead><tr><th>Oficina</th><th>Última utilização</th><th>Pedidos</th><th>Rascunhos</th><th>Orçamentos guardados</th><th>Aceites</th><th>Ações</th></tr></thead><tbody>${rows}</tbody></table>${rows?'':'<p class="empty">Cria a primeira oficina para começar.</p>'}</section>
@@ -260,7 +278,8 @@ async function workshop() {
     async flush() {await queue;return !failure;},
     async putFile(id,blob) {await request('/files/'+encodeURIComponent(id),{method:'PUT',blob});},
     async getFile(id) {return (await request('/files/'+encodeURIComponent(id))).blob();},
-    responses:[]
+    responses:[],
+    sendFeedback:data=>post('/feedback',data)
   };
   async function loadResponses() {
     try {
@@ -274,6 +293,7 @@ async function workshop() {
       window.forjaPilot.loaded=true;
     } catch { /* tenta de novo no próximo ciclo */ }
   }
+  window.forjaPilot.refreshResponses=loadResponses;
   await loadResponses();
   setInterval(loadResponses,15000);
   window.addEventListener('beforeunload',event=>{
