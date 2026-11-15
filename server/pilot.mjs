@@ -348,7 +348,7 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
       if(path==='/api/pilot/workspace' && req.method==='GET') {
         const office=workshopLookup.get(auth.workshop);
         db.prepare('UPDATE workshops SET last_use=? WHERE id=?').run(time(),auth.workshop);
-        return reply(res,{state:JSON.parse(office.state),revision:office.revision});
+        return reply(res,{state:JSON.parse(office.state),revision:office.revision,demo:!!office.demo});
       }
       if(path==='/api/pilot/workspace' && req.method==='PUT') {
         const input=await jsonBody(req,8*1024*1024);

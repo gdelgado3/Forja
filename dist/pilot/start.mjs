@@ -255,6 +255,7 @@ async function workshop() {
   }
   window.forjaPilot={
     initialState:initial.state,
+    demo:!!initial.demo,
     status:()=>failure || (pending?'A guardar…':'Guardado na oficina'),
     save(state) {
       const serialized=JSON.stringify(state);
