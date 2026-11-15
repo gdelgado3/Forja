@@ -11,6 +11,7 @@ function renderPilotWorkspace() {
     <div class="pilot-menu">
       <button type="button" class="pilot-menu-card pilot-menu-main" data-action="new">${icon('<path d="M12 5v14M5 12h14"/>')}<strong>Novo orçamento</strong><small>Cola o pedido ou junta o desenho e monta o rascunho.</small></button>
       <button type="button" class="pilot-menu-card" data-pilot-history>${icon('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>')}<strong>Histórico</strong><small>${state.projects.length?state.projects.length+' orçamento(s) guardado(s) nesta oficina.':'Os teus orçamentos ficam guardados aqui.'}</small></button>
+      <button type="button" class="pilot-menu-card" data-pilot-catalog>${icon('<path d="M4 6h16M4 12h16M4 18h10"/>')}<strong>Catálogo da empresa</strong><small>${(state.settings.catalog||[]).length?(state.settings.catalog.length+' artigo(s). Os custos do orçamento vêm daqui.'):'Mete os teus artigos e custos. A Forja preenche o orçamento com eles.'}</small></button>
       ${window.forjaPilot.demo?`<button type="button" class="pilot-menu-card" data-pilot-feedback-go>${icon('<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>')}<strong>Dar feedback</strong><small>Diz-nos o que achaste e o que mudavas. Demora um minuto.</small></button>`:
       `<button type="button" class="pilot-menu-card" data-pilot-drawing>${icon('<path d="M3 17l14-14 4 4L7 21H3z"/><path d="M14 6l4 4M5 15l2 2M8 12l2 2M11 9l2 2"/>')}<strong>Pedir desenho técnico</strong><small>${drawings?drawings+' pedido(s) de desenho enviado(s).':'Envia a folha de medidas e as fotos e recebe o alçado cotado.'}</small></button>`}
     </div>
@@ -122,7 +123,8 @@ function pilotExampleProject() {
     lines:[
       {id:uid(),desc:'Chapa inox 2 mm, planificada',qty:1.04,unit:'m²',price:78,source:'Aba 150 + profundidade 250 = 400 mm × (1,20 + 0,80 + 0,60) m · espessura proposta, por confirmar'},
       {id:uid(),desc:'Corte e quinagem',qty:2,unit:'h',price:35,source:'Estimativa de demonstração · validar horas'},
-      {id:uid(),desc:'Acabamento escovado',qty:1.04,unit:'m²',price:15,source:'Uma face · 1,04 m²'}],
+      {id:uid(),desc:'Acabamento escovado',qty:1.04,unit:'m²',price:15,source:'Uma face · 1,04 m²'},
+      {id:uid(),desc:'Montagem na parede',qty:1.5,unit:'h',price:0,source:''}],
     markup:state.settings.markup,vat:state.settings.vat,versions:[],files:[],
     memory:[
       {id:uid(),text:'Espessura não indicada no pedido. Proposta: 2 mm.',kind:'Pendente',source:'Pedido inicial · email (exemplo)',created:t},
@@ -137,9 +139,41 @@ document.addEventListener('input',event=>{
   if(p && event.target.id==='pilot-failed')p.checkNote=event.target.value;
 });
 document.addEventListener('click',async ev=>{
-  const target=ev.target.closest('[data-pilot-example],[data-price-check],[data-feedback-rating],[data-feedback-send],[data-feedback-again],[data-price-save],[data-pilot-history],[data-pilot-drawing],[data-pilot-drawing-send],[data-pilot-feedback-go]');
+  const target=ev.target.closest('[data-pilot-example],[data-price-check],[data-feedback-rating],[data-feedback-send],[data-feedback-again],[data-price-save],[data-pilot-catalog],[data-pilot-catalog-save],[data-pilot-autoprice],[data-pilot-history],[data-pilot-drawing],[data-pilot-drawing-send],[data-pilot-feedback-go]');
   if(!target)return;
   if(target.hasAttribute('data-pilot-feedback-go')) {document.querySelector('.pilot-feedback')?.scrollIntoView({behavior:'smooth'});document.querySelector('#pilot-feedback-text')?.focus({preventScroll:true});return;}
+  if(target.hasAttribute('data-pilot-catalog')) {
+    const rows=(state.settings.catalog||[]).map(x=>`${x.label};${x.unit};${String(x.price).replace('.',',')}`).join('\n');
+    modal(`${modalHead('Catálogo da empresa','Um artigo por linha: nome; unidade; custo. A Forja usa estes custos para preencher o orçamento e diz a confiança de cada correspondência.')}
+      <div class="pilot-drawing">
+      <label>Artigos<textarea class="field pilot-catalog-text" id="pc-text" rows="12" placeholder="Chapa inox 2 mm;m²;78&#10;Tubo aço 40×40×2;m;4,50&#10;Montagem em obra;h;35">${esc(rows)}</textarea></label>
+      <label>Ou importar um ficheiro CSV<input class="field" id="pc-file" type="file" accept=".csv,.txt,text/csv,text/plain"></label>
+      <p class="smalltext muted">Unidades: un, m, m², m³, kg ou h. Separa com ponto e vírgula ou tabulação. Até 500 artigos.</p>
+      <p id="pc-status" class="pilot-message" role="alert" hidden></p>
+      <div class="pilot-start"><button type="button" class="primary" data-pilot-catalog-save>Guardar catálogo</button><button type="button" data-action="close">Cancelar</button></div></div>`);
+    document.querySelector('#pc-file').addEventListener('change',async e=>{const f=e.target.files[0];if(f)document.querySelector('#pc-text').value=(await f.text()).slice(0,200000);});
+    return;
+  }
+  if(target.hasAttribute('data-pilot-catalog-save')) {
+    const status=document.querySelector('#pc-status'),say=t=>{status.hidden=!t;status.textContent=t;};
+    let catalog;
+    try {catalog=pilotParseCatalog(document.querySelector('#pc-text').value);} catch(e) {return say(e.message);}
+    target.disabled=true;say('');
+    try {
+      state.settings.catalog=await window.forjaPilot.saveCatalog(catalog);
+      closeModal();render();toast(`Catálogo guardado: ${state.settings.catalog.length} artigo(s).`);
+    } catch(e) {say(e.message);target.disabled=false;}
+    return;
+  }
+  if(target.hasAttribute('data-pilot-autoprice')) {
+    const p=project();
+    if(!(state.settings.catalog||[]).length){toast('Mete primeiro o catálogo da empresa no menu inicial.');return;}
+    let filled=0,low=0;
+    for(const l of p.lines){if(l.match?.manual)continue;const r=pilotAutoPrice(l,{withUnit:true});if(r==='applied')filled++;else if(r==='low')low++;}
+    dirty(p);event(p,`Custos preenchidos com o catálogo: ${filled} linha(s)`+(low?`; ${low} sem correspondência`:''),'Catálogo da oficina');
+    persist();render();toast(`${filled} linha(s) preenchida(s) com o catálogo.`+(low?` ${low} sem correspondência: revê à mão.`:''));
+    return;
+  }
   if(target.hasAttribute('data-pilot-history')) {document.querySelector('#pilot-history')?.scrollIntoView({behavior:'smooth'});return;}
   if(target.hasAttribute('data-pilot-drawing')) {
     modal(`${modalHead('Pedir desenho técnico','Envia a folha de medidas e as fotos do local. A equipa da Forja devolve o alçado cotado nesta página.')}
@@ -173,7 +207,7 @@ document.addEventListener('click',async ev=>{
     return;
   }
   if(target.hasAttribute('data-pilot-example')) {
-    if(!state.projects.some(p=>p.id==='exemplo'))state.projects.push(pilotExampleProject());
+    if(!state.projects.some(p=>p.id==='exemplo')){const ex=pilotExampleProject();ex.lines.forEach(l=>pilotAutoPrice(l,{withUnit:true,keepSource:!!l.source}));state.projects.push(ex);}
     selected='exemplo';view='detail';tab='orcamento';persist();render();
     window.forjaPilot.flush().then(()=>window.forjaPilot.refreshResponses());
   } else if(target.dataset.priceCheck) {
@@ -202,3 +236,85 @@ document.addEventListener('click',async ev=>{
     catch(e) {toast(e.message);target.disabled=false;}
   }
 });
+
+// ---- Correspondência com o catálogo (métrica tipo RapidFuzz: ratio, token_sort_ratio e token_set_ratio)
+const pilotStop=new Set(['de','da','do','das','dos','a','o','as','os','e','em','na','no','nas','nos','com','para','por','c','p']);
+function pilotNorm(text) {
+  return String(text||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/\([^)]*\)/g,' ').replace(/(\d)\s*[x×*]\s*(?=\d)/g,'$1 x ').replace(/(\d),(\d)/g,'$1.$2').replace(/(\d)(mm|cm|m|kg|m2|m3)\b/g,'$1 $2')
+    .replace(/[^a-z0-9.]+/g,' ').split(' ').filter(t=>t && !pilotStop.has(t));
+}
+function pilotLcs(a,b) {
+  if(!a.length||!b.length)return 0;
+  let prev=new Array(b.length+1).fill(0);
+  for(let i=1;i<=a.length;i++){const cur=[0];for(let j=1;j<=b.length;j++)cur[j]=a[i-1]===b[j-1]?prev[j-1]+1:Math.max(prev[j],cur[j-1]);prev=cur;}
+  return prev[b.length];
+}
+function pilotRatio(a,b) {return a.length+b.length?200*pilotLcs(a,b)/(a.length+b.length):0;}
+function pilotScore(query,label) {
+  const a=pilotNorm(query),b=pilotNorm(label);
+  if(!a.length||!b.length)return 0;
+  const sortA=[...a].sort().join(' '),sortB=[...b].sort().join(' ');
+  const setA=new Set(a),setB=new Set(b);
+  const inter=[...setA].filter(t=>setB.has(t)).sort(),onlyA=[...setA].filter(t=>!setB.has(t)).sort(),onlyB=[...setB].filter(t=>!setA.has(t)).sort();
+  const sect=inter.join(' '),ab=[sect,...onlyA].filter(Boolean).join(' '),ba=[sect,...onlyB].filter(Boolean).join(' ');
+  let tokenSet=0;
+  if(inter.length && (!onlyA.length||!onlyB.length)) tokenSet=100;
+  else tokenSet=Math.max(sect?pilotRatio(sect,ab):0,sect?pilotRatio(sect,ba):0,pilotRatio(ab,ba));
+  // Números diferentes (ex.: 2 mm vs 3 mm) não podem dar correspondência alta.
+  const numsA=a.filter(t=>/\d/.test(t)),numsB=b.filter(t=>/\d/.test(t));
+  const clash=numsA.length&&numsB.length&&!numsA.some(n=>numsB.includes(n));
+  const score=Math.max(pilotRatio(sortA,sortB),0.9*tokenSet);
+  return Math.round(clash?Math.min(score*0.6,55):score);
+}
+function pilotBestMatch(desc) {
+  const scored=(state.settings.catalog||[]).map((row,index)=>({row,index,score:pilotScore(desc,row.label)})).sort((x,y)=>y.score-x.score);
+  const best=scored[0];
+  // Dois artigos quase empatados: a escolha é incerta, por isso a confiança desce para média.
+  if(best && scored[1] && best.score-scored[1].score<4 && best.score>=60) best.score=Math.min(best.score,70);
+  return best||null;
+}
+function pilotAutoPrice(line,{withUnit=false,keepSource=false}={}) {
+  const best=pilotBestMatch(line.desc);
+  if(!best){line.match={label:'',score:0,manual:false,applied:false};return 'none';}
+  if(best.score<60){
+    // Se o custo vinha de outro artigo do catálogo, deixa de valer: fica por indicar.
+    if(line.match?.applied && !line.match.manual){line.price=0;line.source='Por indicar · sem artigo correspondente no catálogo';}
+    line.match={label:best.row.label,score:best.score,manual:false,applied:false};return 'low';
+  }
+  line.price=best.row.price;
+  if(withUnit)line.unit=best.row.unit;
+  if(!keepSource)line.source=`Catálogo da oficina · ${best.row.label}`;
+  line.match={label:best.row.label,score:best.score,manual:false,applied:true};
+  return 'applied';
+}
+function pilotConfidence(l) {
+  const m=l.match;
+  if(!m)return '<span class="pilot-conf pilot-conf-none" title="Linha sem correspondência calculada">—</span>';
+  if(m.manual)return `<span class="pilot-conf pilot-conf-manual" title="Custo alterado à mão${m.label?' · catálogo: '+esc(m.label):''}">Manual</span>`;
+  if(!m.applied)return `<span class="pilot-conf pilot-conf-low" title="${m.label?'Melhor artigo: '+esc(m.label):'Catálogo vazio'}">Sem corresp.${m.label?' · '+m.score+'%':''}</span>`;
+  const level=m.score>=85?'high':'mid';
+  return `<span class="pilot-conf pilot-conf-${level}" title="Artigo do catálogo: ${esc(m.label)}">${level==='high'?'Alta':'Média'} · ${m.score}%</span>`;
+}
+function pilotAfterEdit(p,l,k) {
+  if(k==='price'||k==='unit'){if(l.match)l.match.manual=true;return false;}
+  if(k==='desc' && !l.match?.manual && (state.settings.catalog||[]).length){
+    pilotAutoPrice(l,{withUnit:true});dirty(p);event(p,'Linha «'+l.desc+'»: custo procurado no catálogo','Catálogo da oficina');persist();render();return true;
+  }
+  return false;
+}
+function pilotParseCatalog(text) {
+  const units={'un':'un','un.':'un','uni':'un','unid':'un','unid.':'un','unidade':'un','unidades':'un','m':'m','ml':'m','m2':'m²','m²':'m²','m3':'m³','m³':'m³','kg':'kg','h':'h','hr':'h','hora':'h','horas':'h'};
+  const rows=String(text).split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  if(rows.length>500)throw new Error('O catálogo pode ter até 500 artigos.');
+  return rows.filter((line,i)=>!(i===0 && /artigo|descri/i.test(line) && !/\d/.test(line))).map((line,i)=>{
+    const cols=line.split(/\t|;/).map(c=>c.trim());
+    if(cols.length<3)throw new Error(`Linha ${i+1}: escreve nome; unidade; custo.`);
+    const unit=units[cols[1].toLowerCase()];
+    if(!unit)throw new Error(`Linha ${i+1}: a unidade «${cols[1]}» não é un, m, m², m³, kg nem h.`);
+    const price=Number(cols[2].replace(/[€\s]/g,'').replace(/\.(?=\d{3}(\D|$))/g,'').replace(',','.'));
+    if(!Number.isFinite(price)||price<0)throw new Error(`Linha ${i+1}: o custo «${cols[2]}» não é um número.`);
+    if(!cols[0]||cols[0].length>180)throw new Error(`Linha ${i+1}: falta o nome do artigo.`);
+    return {label:cols[0],unit,price};
+  });
+}

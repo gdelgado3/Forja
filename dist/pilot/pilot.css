@@ -105,3 +105,13 @@
 .pilot-diff.pilot-ok { background:#d9edbd; color:#214d3b; }
 .pilot-diff.pilot-over { background:#f6dfc8; color:#7a4312; }
 #pilot-feedback-admin h3 { margin-top:16px; font-size:1rem; }
+
+.pilot-menu { grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); }
+.quote-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.pilot-conf { display:inline-block; font-size:.75rem; font-weight:700; padding:3px 8px; border-radius:999px; white-space:nowrap; }
+.pilot-conf-high { background:#d9edbd; color:#214d3b; }
+.pilot-conf-mid { background:#f6dfc8; color:#7a4312; }
+.pilot-conf-low { background:#fbe3e1; color:#7d1d17; }
+.pilot-conf-manual { background:#e4e7df; color:#22332c; }
+.pilot-conf-none { color:#7b827b; }
+.pilot-catalog-text { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:.85rem; }

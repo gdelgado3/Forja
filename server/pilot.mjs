@@ -368,6 +368,14 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
             'Rascunho de exemplo pronto: 3 prateleiras em L, 1,04 m² de chapa inox de 2 mm. Falta saber a espessura e a fixação à parede. Vê o separador 3. Orçamento.',time());
         return reply(res,{revision:office.revision+1});
       }
+      if(path==='/api/pilot/catalog' && req.method==='PUT') {
+        const input=await jsonBody(req,512*1024);
+        const office=workshopLookup.get(auth.workshop),state=JSON.parse(office.state);
+        const settings=priceSettings(office.name,{...state.settings,catalog:input.catalog});
+        state.settings={...state.settings,catalog:settings.catalog};
+        db.prepare('UPDATE workshops SET state=?,last_use=? WHERE id=?').run(JSON.stringify(state),time(),office.id);
+        return reply(res,{catalog:settings.catalog});
+      }
       if(path==='/api/pilot/feedback' && req.method==='POST') {
         const input=await jsonBody(req);
         const rating=input.rating==null?null:Number(input.rating);

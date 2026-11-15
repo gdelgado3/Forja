@@ -285,7 +285,8 @@ async function workshop() {
     async putFile(id,blob) {await request('/files/'+encodeURIComponent(id),{method:'PUT',blob});},
     async getFile(id) {return (await request('/files/'+encodeURIComponent(id))).blob();},
     responses:[],
-    sendFeedback:data=>post('/feedback',data)
+    sendFeedback:data=>post('/feedback',data),
+    saveCatalog:async catalog=>(await api('/catalog',{method:'PUT',json:{catalog}})).catalog
   };
   async function loadResponses() {
     try {
