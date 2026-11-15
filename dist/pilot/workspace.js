@@ -90,10 +90,21 @@ document.addEventListener('input',event=>{
 function pilotPriceCheck(p) {
   if(tab!=='orcamento' || !p.lines.length)return '';
   const options=[['under','Abaixo','O rascunho ficou abaixo do preço certo'],['ok','Certo','O rascunho bate com o preço certo'],['over','Acima','O rascunho ficou acima do preço certo']];
-  return `<section class="card card-pad pilot-check no-print"><h2>Este rascunho ficou…</h2>
+  const draft=calc(p).subtotal, actual=Number(p.actualPrice);
+  const diff=actual>0?Math.round((draft-actual)/actual*100):null;
+  const diffText=diff===null?'':`<p class="pilot-diff ${diff<-2?'pilot-under':diff>2?'pilot-over':'pilot-ok'}">Rascunho ${euro(draft)} · preço final ${euro(actual)} · <strong>${diff>0?'+':''}${diff}%</strong> (${diff<-2?'abaixo':diff>2?'acima':'certo'})</p>`;
+  return `<section class="card card-pad pilot-check no-print"><h2>Avaliar orçamento</h2>
+    <p class="smalltext muted">O rascunho da Forja ficou…</p>
     <div class="pilot-check-options" role="group" aria-label="Avaliar o preço do rascunho">${options.map(([key,label,title])=>
       `<button type="button" data-price-check="${key}" title="${title}" aria-pressed="${p.priceCheck===key}" class="${p.priceCheck===key?'chosen pilot-'+key:''}">${p.priceCheck===key?'✓ ':''}${label}</button>`).join('')}</div>
-    <p class="smalltext muted">${p.priceCheck==='under'?'Abaixo do preço certo: é o erro mais caro para a oficina. A Forja aprende a arredondar para cima.':'Marca como ficou face ao preço que darias. Ajuda a Forja a nunca orçar abaixo do custo.'}</p></section>`;
+    <div class="field-grid pilot-check-fields">
+      <label>Preço final do orçamento (€, sem IVA)<input class="field" id="pilot-actual" type="number" min="0" step="0.01" inputmode="decimal" value="${p.actualPrice??''}" placeholder="O valor que enviaste ao cliente"></label>
+      <label>O que falhou?<textarea class="field" id="pilot-failed" rows="3" maxlength="2000" placeholder="Ex.: faltou o tubo de reforço; a montagem leva mais horas…">${esc(p.checkNote||'')}</textarea></label>
+    </div>
+    ${diffText}
+    <button type="button" class="primary" data-price-save>Guardar avaliação</button>
+    ${p.checkSaved?`<span class="smalltext muted"> Guardada a ${new Date(p.checkSaved).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}.</span>`:''}
+    <p class="smalltext muted">${p.priceCheck==='under'?'Abaixo do preço certo: é o erro mais caro para a oficina. A Forja aprende a arredondar para cima.':'Ajuda a Forja a nunca orçar abaixo do custo.'}</p></section>`;
 }
 let pilotFeedback={rating:null,text:'',sent:false};
 function pilotFeedbackHtml() {
@@ -121,9 +132,12 @@ function pilotExampleProject() {
 }
 document.addEventListener('input',event=>{
   if(event.target.id==='pilot-feedback-text')pilotFeedback.text=event.target.value;
+  const p=view==='detail'?project():null;
+  if(p && event.target.id==='pilot-actual'){const v=event.target.value.replace(',','.');p.actualPrice=v===''?null:Number(v);}
+  if(p && event.target.id==='pilot-failed')p.checkNote=event.target.value;
 });
-document.addEventListener('click',async event=>{
-  const target=event.target.closest('[data-pilot-example],[data-price-check],[data-feedback-rating],[data-feedback-send],[data-feedback-again],[data-pilot-history],[data-pilot-drawing],[data-pilot-drawing-send],[data-pilot-feedback-go]');
+document.addEventListener('click',async ev=>{
+  const target=ev.target.closest('[data-pilot-example],[data-price-check],[data-feedback-rating],[data-feedback-send],[data-feedback-again],[data-price-save],[data-pilot-history],[data-pilot-drawing],[data-pilot-drawing-send],[data-pilot-feedback-go]');
   if(!target)return;
   if(target.hasAttribute('data-pilot-feedback-go')) {document.querySelector('.pilot-feedback')?.scrollIntoView({behavior:'smooth'});document.querySelector('#pilot-feedback-text')?.focus({preventScroll:true});return;}
   if(target.hasAttribute('data-pilot-history')) {document.querySelector('#pilot-history')?.scrollIntoView({behavior:'smooth'});return;}
@@ -165,7 +179,17 @@ document.addEventListener('click',async event=>{
   } else if(target.dataset.priceCheck) {
     const p=project();
     p.priceCheck=p.priceCheck===target.dataset.priceCheck?'':target.dataset.priceCheck;
+    p.checkDraft=calc(p).subtotal;
     persist();render();
+  } else if(target.hasAttribute('data-price-save')) {
+    const p=project(),raw=document.querySelector('#pilot-actual').value.replace(',','.');
+    const value=raw===''?null:Number(raw);
+    if(value!==null && !(value>=0 && value<1e8)){toast('Indica um preço válido.');return;}
+    p.actualPrice=value;p.checkNote=document.querySelector('#pilot-failed').value.trim().slice(0,2000);
+    p.checkDraft=calc(p).subtotal;p.checkSaved=now();
+    if(value>0 && !p.priceCheck){const d=(p.checkDraft-value)/value*100;p.priceCheck=d<-2?'under':d>2?'over':'ok';}
+    event(p,'Avaliação do orçamento guardada'+(value!==null?' · preço final '+euro(value):''),'Oficina');
+    persist();render();toast('Avaliação guardada. Obrigado!');
   } else if(target.dataset.feedbackRating) {
     const n=Number(target.dataset.feedbackRating);
     pilotFeedback.rating=pilotFeedback.rating===n?null:n;render();

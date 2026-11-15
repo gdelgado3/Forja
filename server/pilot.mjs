@@ -279,9 +279,11 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
             .map(f=>({...f,demo:!!f.demo}));
           const checks={under:0,ok:0,over:0},checked=[];
           for(const o of db.prepare('SELECT name,demo,state FROM workshops').all()) for(const p of JSON.parse(o.state).projects)
-            if(Object.hasOwn(checks,p.priceCheck)) {
-              checks[p.priceCheck]++;
-              checked.push({workshop:o.name,demo:!!o.demo,project:String(p.code)+' · '+String(p.name),example:!!p.demo,check:p.priceCheck});
+            if(Object.hasOwn(checks,p.priceCheck) || Number(p.actualPrice)>0 || (typeof p.checkNote==='string' && p.checkNote.trim())) {
+              if(Object.hasOwn(checks,p.priceCheck)) checks[p.priceCheck]++;
+              const num=v=>Number.isFinite(Number(v)) && v!==null && v!==''?Number(v):null;
+              checked.push({workshop:o.name,demo:!!o.demo,project:String(p.code)+' · '+String(p.name),example:!!p.demo,check:Object.hasOwn(checks,p.priceCheck)?p.priceCheck:'',
+                actual:num(p.actualPrice),draft:num(p.checkDraft),note:typeof p.checkNote==='string'?p.checkNote.slice(0,2000):'',saved:typeof p.checkSaved==='string'?p.checkSaved:''});
             }
           return reply(res,{items,checks,checked:checked.slice(0,500)});
         }

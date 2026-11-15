@@ -80,12 +80,17 @@ function feedbackHtml() {
   const average=rated.length?(rated.reduce((sum,f)=>sum+f.rating,0)/rated.length).toFixed(1).replace('.',','):'—';
   const rows=feedbackData.items.map(f=>`<li><strong>${f.rating?f.rating+'/5':'sem nota'}</strong> ${f.text?escape(f.text):'<em>sem texto</em>'}<small>${escape(f.workshop)} · ${dateText(f.created)}</small></li>`).join('');
   const names={under:'abaixo',ok:'certo',over:'acima'};
-  const checked=feedbackData.checked.map(x=>`<li>${escape(x.project)}${x.example?' (exemplo)':''}: <strong>${names[x.check]}</strong><small>${escape(x.workshop)}</small></li>`).join('');
+  const eur=v=>new Intl.NumberFormat('pt-PT',{style:'currency',currency:'EUR'}).format(v);
+  const checked=feedbackData.checked.map(x=>{
+    const diff=x.actual>0&&x.draft!=null?Math.round((x.draft-x.actual)/x.actual*100):null;
+    return `<li>${escape(x.project)}${x.example?' (exemplo)':''}: <strong>${x.check?names[x.check]:'sem avaliação'}</strong>
+      ${x.actual!=null?` · rascunho ${x.draft!=null?eur(x.draft):'—'} · final ${eur(x.actual)}${diff!==null?` (<strong>${diff>0?'+':''}${diff}%</strong>)`:''}`:''}
+      ${x.note?`<br>O que falhou: ${escape(x.note)}`:''}<small>${escape(x.workshop)}${x.saved?' · '+dateText(x.saved):''}</small></li>`;}).join('');
   return `<h2>Feedback</h2>
     <div class="pilot-stats"><div><strong>${feedbackData.items.length}</strong><span>respostas</span></div><div><strong>${average}</strong><span>nota média (1 a 5)</span></div>
     <div><strong>${c.under}</strong><span>rascunhos abaixo</span></div><div><strong>${c.ok}</strong><span>rascunhos certos</span></div><div><strong>${c.over}</strong><span>rascunhos acima</span></div></div>
     ${rows?`<ul class="pilot-feedback-list">${rows}</ul>`:'<p class="empty">Ainda não há feedback.</p>'}
-    ${checked?`<details><summary>Rascunhos avaliados (${feedbackData.checked.length})</summary><ul class="pilot-feedback-list">${checked}</ul></details>`:''}`;
+    ${checked?`<h3>Orçamentos avaliados (${feedbackData.checked.length})</h3><ul class="pilot-feedback-list">${checked}</ul>`:''}`;
 }
 async function refreshInbox(force) {
   const box=document.querySelector('#pilot-inbox');

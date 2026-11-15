@@ -97,3 +97,11 @@
 .pilot-try-example:hover,.pilot-try-example:focus-visible { background:#a9652a; border-color:#fff; }
 @keyframes pilot-pulse { 0%,100% { box-shadow:0 6px 18px rgba(196,120,53,.35); } 50% { box-shadow:0 6px 26px rgba(196,120,53,.75); } }
 @media (prefers-reduced-motion:reduce) { .pilot-try-example { animation:none; } }
+
+.pilot-check-fields { margin:12px 0; }
+.pilot-check-fields textarea { min-height:70px; }
+.pilot-diff { padding:10px 12px; border-radius:8px; margin:0 0 12px; }
+.pilot-diff.pilot-under { background:#fbe3e1; color:#7d1d17; }
+.pilot-diff.pilot-ok { background:#d9edbd; color:#214d3b; }
+.pilot-diff.pilot-over { background:#f6dfc8; color:#7a4312; }
+#pilot-feedback-admin h3 { margin-top:16px; font-size:1rem; }
