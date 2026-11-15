@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {normalize,analyze} from './vision.mjs';
+const sample={summary:'Portão',questions:['Qual a altura?'],fields:[{label:'Largura',value:3000,unit:'mm',evidence:'3000 mm',status:'explicit',source:'Imagem 1, topo'},{label:'Material',value:'Aço',unit:'',evidence:'aparência',status:'hypothesis',source:'Imagem 1'},{label:'Altura',value:null,unit:'m',evidence:'sem cota',status:'missing',source:'Imagem 1'}]};
+const out=normalize(sample);assert.equal(out.rows.length,1);assert.equal(out.rows[0].value,3);assert.equal(out.rows[0].unit,'m');assert(out.notes.some(x=>x.startsWith('Hipótese')));
+assert.throws(()=>normalize({...sample,fields:[{...sample.fields[0],evidence:''}]}));
+await assert.rejects(()=>analyze({text:'',images:[]},{OPENAI_API_KEY:'test'}));
+await assert.rejects(()=>analyze({text:'x',images:['https://example.com']},{OPENAI_API_KEY:'test'}));
+await assert.rejects(()=>analyze({text:'x',images:[]},{OPENAI_API_KEY:'test'},async()=>({ok:false,status:429,json:async()=>({error:{code:'credit_balance_exhausted'}})})),/Sem saldo/);
+const result=await analyze({text:'x',images:[]},{OPENAI_API_KEY:'test'},async(_u,options)=>{const req=JSON.parse(options.body);assert.equal(req.store,false);assert.equal(req.text.format.strict,true);return{ok:true,json:async()=>({status:'completed',output:[{content:[{type:'output_text',text:JSON.stringify(sample)}]}]})}});assert.equal(result.rows.length,1);
+console.log('PASS: normalização, hipóteses excluídas, validação, falta de saldo, resposta estruturada (API simulada).');
+const anthropic=await analyze({text:'Pedido',images:['data:image/png;base64,YQ==']},{VISION_PROVIDER:'anthropic',ANTHROPIC_API_KEY:'fake'},async(url,options)=>{assert.equal(url,'https://api.anthropic.com/v1/messages');assert.equal(options.headers['x-api-key'],'fake');const b=JSON.parse(options.body);assert.equal(b.messages[0].content[0].source.data,'YQ==');assert.equal(b.tool_choice.name,'forja_extraction');return{ok:true,json:async()=>({stop_reason:'tool_use',content:[{type:'tool_use',name:'forja_extraction',input:sample}]})}});assert.equal(anthropic.rows[0].value,3);assert.equal(anthropic.stats.provider,'anthropic');
+await assert.rejects(()=>analyze({text:'x',images:[]},{VISION_PROVIDER:'anthropic',OPENAI_API_KEY:'fake'}),/ANTHROPIC_API_KEY/);
+await assert.rejects(()=>analyze({text:'x',images:[]},{VISION_PROVIDER:'anthropic',ANTHROPIC_API_KEY:'fake'},async()=>({ok:true,json:async()=>({stop_reason:'max_tokens'})})),/incompleta/);
+console.log('PASS: Anthropic payload, extração, fornecedor sem fallback e truncagem.');

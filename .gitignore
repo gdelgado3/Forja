@@ -1,0 +1,5 @@
+node_modules/
+dados-piloto/
+copia-antes-piloto/
+.env
+.env.*

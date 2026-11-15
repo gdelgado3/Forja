@@ -1,0 +1,2 @@
+import {readDXF,readIFC} from './readers.mjs';
+self.onmessage=async({data})=>{try{let result;if(data.kind==='DXF'){await import('./vendor/dxf-parser.js');result=readDXF(data.text,self.DxfParser,data.unit)}else if(data.kind==='IFC'){const W=await import('./vendor/ifc/web-ifc-api.js');result=await readIFC(new Uint8Array(data.buffer),W,p=>self.postMessage({progress:p}))}else throw Error('Formato não suportado.');self.postMessage({result})}catch(e){self.postMessage({error:e.message||String(e)})}};

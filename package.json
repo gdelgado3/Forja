@@ -1,0 +1,21 @@
+{
+  "name": "forja-mvp",
+  "version": "0.2.0",
+  "private": true,
+  "dependencies": {
+    "tesseract.js": "7.0.0",
+    "dxf-parser": "1.1.2",
+    "pdfjs-dist": "6.5.438",
+    "web-ifc": "0.0.77",
+    "@tesseract.js-data/eng": "1.0.0",
+    "@tesseract.js-data/por": "1.0.0"
+  },
+  "scripts": {
+    "start": "node server/pilot.mjs",
+    "test": "node tests.mjs && node reader-tests.mjs && node server/vision-tests.mjs",
+    "start:local": "node server/local.mjs"
+  },
+  "engines": {
+    "node": "22.x"
+  }
+}

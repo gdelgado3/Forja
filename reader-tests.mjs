@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import DxfParser from 'dxf-parser';
+import * as WebIFC from 'web-ifc';
+import {readDXF,readIFC,polyMetrics,textRows,numberValue} from './dist/readers.mjs';
+const sample=fs.readFileSync('dist/samples/portao-demo.dxf','utf8');
+const d=readDXF(sample,DxfParser);
+assert.equal(d.rows.find(r=>r.label==='Área geométrica do contorno').value,5.4);
+assert.equal(d.rows.find(r=>r.label==='Perímetro de contorno fechado').value,9.6);
+assert.equal(d.rows.find(r=>r.label==='Comprimento de linha').value,1.8);
+assert.equal(readDXF(sample.replace('$INSUNITS\n70\n4','$INSUNITS\n70\n0'),DxfParser).needsUnits,true);
+assert.equal(readDXF(sample,DxfParser,6).rows.find(r=>r.label==='Área geométrica do contorno').value,5400000);
+const bulge=polyMetrics([{x:0,y:0,bulge:1},{x:2,y:0}],true);
+assert.ok(Math.abs(bulge.length-(Math.PI+2))<1e-8);
+assert.ok(Math.abs(bulge.area-Math.PI/2)<1e-8);
+assert.equal(numberValue('3.000'),null);
+assert.equal(numberValue('1.234,5'),1234.5);
+assert.equal(textRows('LARGURA: 3000 mm')[0].value,3);
+assert.equal(textRows('foto de um portao sem medidas').length,0);
+assert.equal(textRows('ALTURA: 180 cm')[0].target,'height');
+class LocalAPI extends WebIFC.IfcAPI {SetWasmPath(){super.SetWasmPath(path.resolve('node_modules/web-ifc')+'/',true)}}
+const i=await readIFC(new Uint8Array(fs.readFileSync('dist/samples/portao-demo.ifc')),{...WebIFC,IfcAPI:LocalAPI});
+assert.equal(i.elements.length,2);assert.equal(i.rows.find(r=>r.label.includes('GrossArea')).value,5.4);assert.equal(i.rows.find(r=>r.label.includes('NetWeight')).value,85);assert.equal(i.elements[0].materials,'Aco S235');
+console.log(JSON.stringify({pass:true,dxfRows:d.rows.length,ifcRows:i.rows.length,ifcElements:i.elements.length,ifcSchema:i.stats.schema}));

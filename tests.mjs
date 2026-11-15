@@ -1,0 +1,20 @@
+import fs from 'node:fs';
+import vm from 'node:vm';
+import assert from 'node:assert/strict';
+import {webcrypto} from 'node:crypto';
+const src=fs.readFileSync(new URL('./dist/app.js',import.meta.url),'utf8').replace(/persist\(\);render\(\);\s*$/,'');
+const sandbox={crypto:webcrypto,Intl,Date,JSON,Number,String,Array,Math,Uint8Array,localStorage:{getItem:()=>null,setItem:()=>{}},document:{addEventListener:()=>{}},console};
+vm.createContext(sandbox);vm.runInContext(src,sandbox);
+vm.runInContext(`
+const testProject=initial().projects[0];
+if(calc(testProject).cost!==934.6||calc(testProject).subtotal!==1168.25||calc(testProject).total!==1436.95)throw Error('Demo arithmetic');
+const testVersion=snapshot(testProject,'first');
+testProject.lines[1].qty=6.3;
+if(calc(testVersion).subtotal!==1168.25||calc(testProject).subtotal!==1204.25||calc(testProject).total!==1481.23)throw Error('Version isolation');
+if(calc({lines:[{qty:1,price:100}],markup:25,vat:23}).total!==153.75)throw Error('Markup/VAT');
+if(calc({lines:[],markup:25,vat:23}).total!==0)throw Error('Empty quote');
+const valid=initial();if(!validState(valid))throw Error('Backup validator rejected valid data');
+valid.projects[0].id='\" onclick=bad';if(validState(valid))throw Error('Backup validator accepted unsafe id');
+`,sandbox);
+assert.ok(src.includes('function dirty'));
+console.log('PASS: cost/markup/VAT, cents, empty quote, snapshot isolation, backup validation.');
