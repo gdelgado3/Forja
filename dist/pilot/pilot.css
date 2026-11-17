@@ -182,3 +182,8 @@
 .quote-table td:nth-child(n+2), .quote-table th:nth-child(n+2) { text-align:right; white-space:nowrap; }
 .pilot-ai-cta { border-color:#c47835; background:#fffaf4; }
 .pilot-ai-cta [data-ai-run] { font-size:17px; padding:14px 22px; }
+.pilot-ai-questions { list-style:none; padding:0 !important; }
+.pilot-ai-questions li { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(160px,1fr); gap:6px 14px; align-items:center; padding:8px 0; border-bottom:1px solid #eceee8; }
+.pilot-ai-qtext small { display:block; font-size:12px; }
+.pilot-ai-questions .field { padding:8px 10px; }
+@media(max-width:620px){ .pilot-ai-questions li { grid-template-columns:1fr; } }
