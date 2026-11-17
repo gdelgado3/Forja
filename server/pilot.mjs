@@ -1,6 +1,6 @@
 import http from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
-import { MODEL, firstMessage, callClaude, checkClaude } from './agent.mjs';
+import { MODEL, firstMessage, callClaude, checkClaude, cleanAsk } from './agent.mjs';
 import { randomBytes, createHash, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import { mkdir, readFile } from 'node:fs/promises';
@@ -555,7 +555,7 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
         turns.forEach((t,i)=>{
           messages.push({role:'assistant',content:t.content||[t.toolUse]});
           messages.push({role:'user',content:[{type:'tool_result',tool_use_id:t.toolUse.id,content:'Leitura recebida pela oficina.'},
-            {type:'text',text:'Mensagem da oficina: '+(turns[i+1]?.ask ?? ask)}]});
+            {type:'text',text:'Mensagem da oficina: '+cleanAsk(turns[i+1]?.ask ?? ask,project)}]});
         });
         const started=time();
         const job={status:'running',started,progress:'A preparar o pedido…'};

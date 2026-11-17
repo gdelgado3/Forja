@@ -66,6 +66,7 @@ export const SCHEMA = {
 };
 const TOOL = { name: 'registar_leitura', description: 'Regista a leitura do pedido para a oficina rever.', input_schema: SCHEMA };
 
+export const cleanAsk = (text, project) => pseudonymize(redactText(String(text || '').slice(0, 2000)).text, project);
 const str = (v, max = 500) => typeof v === 'string' ? redactText(v.slice(0, max)).text : '';
 const list = (v, n = 40) => Array.isArray(v) ? v.slice(0, n) : [];
 const units = new Set(['un', 'm', 'm²', 'm³', 'kg', 'h']);
@@ -108,6 +109,28 @@ export function measuresText(project) {
 }
 
 // Primeira mensagem: pedido, medidas já guardadas, anexos e nomes do catálogo.
+// Pseudonimização: o nome e os contactos que a oficina conhece deste cliente são trocados por marcas antes de sair.
+// O modelo nunca recebe o valor original, e as marcas não se podem reverter fora da Forja.
+export function pseudonymize(text, project) {
+  if (typeof text !== 'string' || !text) return text;
+  const known = [];
+  const name = String(project?.client || '').trim();
+  if (name.length >= 3) {
+    known.push([name, '[cliente]']);
+    const parts = name.split(/\s+/).filter(w => w.length >= 3 && /^[A-ZÁÉÍÓÚÂÊÔÃÕÇ]/.test(w));
+    if (parts.length >= 2) known.push([parts[0] + ' ' + parts.at(-1), '[cliente]']);
+    for (const w of parts) known.push([w, '[cliente]']);
+  }
+  for (const c of String(project?.contact || '').split(/\s*·\s*/)) if (c.trim().length >= 5) known.push([c.trim(), '[contacto do cliente]']);
+  if (String(project?.place || '').trim().length >= 3) known.push([String(project.place).trim(), '[local da obra]']);
+  let out = text;
+  for (const [value, mark] of known.sort((a, b) => b[0].length - a[0].length)) {
+    const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    out = out.replace(new RegExp(`(?<![\\p{L}\\d])${escaped}(?![\\p{L}\\d])`, 'giu'), mark);
+  }
+  return out;
+}
+
 export function firstMessage(project, files, catalog) {
   const content = [];
   const skipped = [];
@@ -119,10 +142,10 @@ export function firstMessage(project, files, catalog) {
     const data = Buffer.from(f.bytes).toString('base64');
     if ((/^image\/(jpeg|png|webp)$/.test(f.mime) && f.bytes.length <= MAX_IMAGE) || (f.mime === 'application/pdf' && f.bytes.length <= MAX_PDF)) total += f.bytes.length;
     if (/^image\/(jpeg|png|webp)$/.test(f.mime) && f.bytes.length <= MAX_IMAGE) {
-      content.push({ type: 'text', text: `Anexo ${++n}: ${str(f.name, 120)} (imagem)` });
+      content.push({ type: 'text', text: `Anexo ${++n}: ${pseudonymize(str(f.name, 120), project)} (imagem)` });
       content.push({ type: 'image', source: { type: 'base64', media_type: f.mime, data } });
     } else if (f.mime === 'application/pdf' && f.bytes.length <= MAX_PDF) {
-      content.push({ type: 'text', text: `Anexo ${++n}: ${str(f.name, 120)} (PDF)` });
+      content.push({ type: 'text', text: `Anexo ${++n}: ${pseudonymize(str(f.name, 120), project)} (PDF)` });
       content.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data } });
     } else skipped.push(str(f.name, 120) + ' (formato ou tamanho não suportado)');
   }
@@ -136,7 +159,7 @@ export function firstMessage(project, files, catalog) {
     skipped.length ? '\nAnexos não enviados: ' + skipped.join('; ') : '',
     '\nLê o pedido e regista a leitura.',
   ].filter(Boolean).join('\n');
-  content.push({ type: 'text', text, cache_control: { type: 'ephemeral' } });
+  content.push({ type: 'text', text: pseudonymize(text, project), cache_control: { type: 'ephemeral' } });
   return { message: { role: 'user', content }, skipped };
 }
 

@@ -23,6 +23,8 @@ const RULES = [
   ['telefone', /(?:(?:\+|00)351[\s.-]?[29](?:[\s.-]?\d){8}|(?<!\d|\d[,.])9[1236](?:[\s.-]?\d){7}|(?<!\d|\d[,.])2\d{8}|(?<!\d|\d[,.])2\d[\s.-]\d{3}[\s.-]\d{4})(?!\d|[,.]\d)/g, '[telefone]'],
   ['telefone', /\b(tel(?:efone|ef|em[oó]vel)?|contacto|ligue|ligar)(\.?\s*[:.]?\s*)2\d{2}[\s.-]?\d{3}[\s.-]?\d{3}(?!\d|[,.]\d)/gi, (m, label, sep) => `${label}${sep}[telefone]`],
   ['código postal', /\b\d{4}-\d{3}\b/g, '[código postal]'],
+  // Moradas: só quando o tipo de via vem com maiúscula e seguido de um nome próprio ("Rua das Flores, 12"), para não apanhar "portão para a rua".
+  ['morada', /\b(?:Rua|Avenida|Av\.|Travessa|Tv\.|Largo|Praça|Estrada|Alameda|Calçada|Urbanização|Urb\.|Beco|Quinta)\s+(?:(?:d[aeo]s?)\s+)?[A-ZÁÉÍÓÚÂÊÔÃÕÇ][^\n,;()]{1,60}(?:,\s*(?:n\.?\s*º\s*)?\d+[A-Za-z]?(?:\s*[-,]?\s*\d+\s*º?\s*(?:andar|esq\.?|dto\.?|frente|[A-Z]))?)?/g, '[morada]'],
 ];
 
 export function redactText(input) {
