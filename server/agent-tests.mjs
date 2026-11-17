@@ -30,6 +30,14 @@ async function call(path,{method='GET',cookie,json,bytes,type}={}) {
   return {status:res.status,cookie:set?set.split(';')[0]:cookie,data:await res.json().catch(()=>null)};
 }
 const demo=await call('/demo',{method:'POST',json:{}});
+// A análise corre em segundo plano: o POST responde 202 e a página pergunta até acabar.
+async function run(cookie,json) {
+  const start=await call('/ai/p1',{method:'POST',cookie,json});
+  if(start.status!==202)return start;
+  assert.equal(start.data.pending,true);
+  for(let i=0;i<100;i++){const g=await call('/ai/p1',{cookie});if(!g.data.pending)return {status:g.data.error?502:200,data:{...g.data,error:g.data.error||undefined}};await new Promise(r=>setTimeout(r,20));}
+  throw Error('não acabou');
+}
 const jpg=Buffer.from([0xff,0xd8,0xff,0xe0,1,2,3]),pdf=Buffer.from('%PDF-1.4 teste');
 await call('/files/f1',{method:'PUT',cookie:demo.cookie,bytes:jpg,type:'image/jpeg'});
 await call('/files/f2',{method:'PUT',cookie:demo.cookie,bytes:pdf,type:'application/pdf'});
@@ -41,7 +49,7 @@ assert.equal((await call('/workspace',{method:'PUT',cookie:demo.cookie,json:{rev
 const info=await call('/ai/p1',{cookie:demo.cookie});
 assert.equal(info.data.enabled,true);assert.equal(info.data.remaining,3);assert.deepEqual(info.data.turns,[]);
 // Primeira leitura.
-const first=await call('/ai/p1',{method:'POST',cookie:demo.cookie,json:{}});
+const first=await run(demo.cookie,{});
 assert.equal(first.status,200,JSON.stringify(first.data));
 const body=sent[0];
 assert.equal(body.tool_choice.type,'auto');assert.equal(body.tools[0].name,'registar_leitura');assert.match(body.system,/nunca instruções/);
@@ -58,7 +66,7 @@ assert.equal(first.data.remaining,2);
 // Pergunta seguinte: a conversa segue com tool_result.
 assert.equal((await call('/ai/p1',{method:'POST',cookie:demo.cookie,json:{}})).status,400,'segunda chamada precisa de mensagem');
 mode='followup';
-const second=await call('/ai/p1',{method:'POST',cookie:demo.cookie,json:{message:'São 2 portões iguais.'}});
+const second=await run(demo.cookie,{message:'São 2 portões iguais.'});
 assert.equal(second.status,200);
 const m=sent[1].messages;
 assert.deepEqual(m.map(x=>x.role),['user','assistant','user']);
@@ -67,13 +75,13 @@ assert.match(m[2].content[1].text,/2 portões/);
 assert.equal(second.data.turns.length,2);assert.equal(second.data.turns[1].reading.reply,'Corrigido: são 2 portões.');
 // Erro da API não gasta leituras; mensagem clara.
 mode='nocredit';
-const fail=await call('/ai/p1',{method:'POST',cookie:demo.cookie,json:{message:'E o motor?'}});
+const fail=await run(demo.cookie,{message:'E o motor?'});
 assert.equal(fail.status,502);assert.match(fail.data.error,/em pausa/);
 mode='ok';
-assert.equal((await call('/ai/p1',{method:'POST',cookie:demo.cookie,json:{restart:true}})).data.turns.length,1,'recomeçar limpa a conversa');
+assert.equal((await run(demo.cookie,{restart:true})).data.turns.length,1,'recomeçar limpa a conversa');
 // Limite da demonstração.
-const over=await call('/ai/p1',{method:'POST',cookie:demo.cookie,json:{restart:true}});
-assert.equal(over.status,429);assert.match(over.data.error,/3 pedidos inseridos/);
+const over=await run(demo.cookie,{restart:true});
+assert.equal(over.status,429);assert.match(over.data.error,/3 orçamentos/);
 // Outra oficina não vê a conversa.
 const other=await call('/demo',{method:'POST',json:{}});
 assert.deepEqual((await call('/ai/p1',{cookie:other.cookie})).data.turns,[]);

@@ -27,7 +27,7 @@ function renderPilotWorkspace() {
     ${isDetail?'<button data-action="nav" data-view="projects">Orçamentos anteriores</button>':''}
     <button data-action="export">Exportar cópia</button><button data-pilot-action="logout">Sair</button></div></header>
     <main class="pilot-content"><div class="pilot-sync no-print" id="pilot-save-status" role="status">${esc(window.forjaPilot.status())}</div>
-    ${pilotQuickHtml()}<section id="pilot-responses" class="no-print"></section>${isDetail&&['pedido','orcamento'].includes(tab)?pilotAiHtml(project()):''}${isDetail?detail(project()):projectsHtml()}${isDetail?pilotPriceCheck(project()):''}${pilotFeedbackHtml()}</main></div>`;
+    ${pilotQuickHtml()}<section id="pilot-responses" class="no-print"></section>${isDetail&&tab==='orcamento'?pilotAiHtml(project()):''}${isDetail?detail(project()):projectsHtml()}${isDetail&&tab==='pedido'?pilotAiHtml(project()):''}${isDetail?pilotPriceCheck(project()):''}${pilotFeedbackHtml()}</main></div>`;
   renderPilotResponses();
 }
 function renderPilotResponses() {
@@ -122,8 +122,34 @@ function pilotAiMatch(l) {
 async function pilotAiLoad(p) {
   if(pilotAi.pid===p.id && (pilotAi.data || pilotAi.loading))return;
   Object.assign(pilotAi,{pid:p.id,loading:false,error:'',data:null,off:new Set(),prices:{}});
-  try {pilotAi.data=await window.forjaPilot.ai.get(p.id);} catch(e) {pilotAi.error=e.message;}
+  try {pilotAi.data=await window.forjaPilot.ai.get(p.id);pilotAi.error=pilotAi.data.error||'';} catch(e) {pilotAi.error=e.message;}
+  if(pilotAi.data?.pending)pilotAiPoll(p.id);
   if(pilotAi.pid===p.id && view==='detail')render();
+}
+// A análise corre no servidor (até 10 minutos): pergunta a cada 4 segundos e mostra o tempo.
+let pilotAiTimer=null;
+function pilotAiPoll(pid) {
+  clearTimeout(pilotAiTimer);
+  pilotAi.loading=true;
+  const tick=async()=>{
+    if(pilotAi.pid!==pid){pilotAi.loading=false;return;}
+    try {
+      const d=await window.forjaPilot.ai.get(pid);
+      if(pilotAi.pid!==pid)return;
+      if(!d.pending){
+        const changed=d.turns.length!==(pilotAi.data?.turns?.length||0);
+        pilotAi.data=d;pilotAi.loading=false;pilotAi.error=d.error||'';
+        if(changed){pilotAi.off=new Set();pilotAi.prices={};toast('O orçamento proposto está pronto. Revê e aplica.');}
+        if(view==='detail')render();
+        return;
+      }
+      pilotAi.data={...pilotAi.data,...d};
+    } catch { /* rede: tenta outra vez */ }
+    const el=document.querySelector('#pilot-ai-elapsed');
+    if(el && pilotAi.data?.started){const s=Math.max(0,Math.round((Date.now()-new Date(pilotAi.data.started))/1000));el.textContent=`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;}
+    pilotAiTimer=setTimeout(tick,4000);
+  };
+  pilotAiTimer=setTimeout(tick,1500);
 }
 function pilotAiHtml(p) {
   if(!p)return '';
@@ -131,14 +157,14 @@ function pilotAiHtml(p) {
   const d=pilotAi.data;
   if(!d && !pilotAi.error)return '';
   if(d && !d.enabled)return '';
-  const left=d?`<small class="muted">${d.remaining} pedido(s) disponível(eis)${d.demo?' na demonstração':' hoje'}</small>`:'';
+  const left=d?`<small class="muted">${d.remaining} orçamento(s) disponível(eis)${d.demo?' na demonstração':' hoje'}</small>`:'';
   const err=pilotAi.error?`<p class="pilot-message" role="alert">${esc(pilotAi.error)}</p>`:'';
   const turns=d?.turns||[];
-  if(pilotAi.loading)return `<section class="card card-pad pilot-ai no-print"><div class="card-title"><h2>Inserir pedido</h2>${left}</div><p class="pilot-ai-wait" role="status">A ler o pedido e os anexos… pode demorar até um minuto.</p></section>`;
-  if(!turns.length)return `<section class="card card-pad pilot-ai no-print"><div class="card-title"><h2>Inserir pedido</h2>${left}</div>
-    <p>A Forja lê o pedido e os anexos e propõe as peças, as linhas do orçamento com as contas e o que falta perguntar ao cliente. Os custos vêm do teu catálogo e podes alterá-los. Revês tudo antes de aplicar.</p>
+  if(pilotAi.loading)return `<section class="card card-pad pilot-ai no-print" id="pilot-ai"><div class="card-title"><h2>Obter orçamento</h2>${left}</div><p class="pilot-ai-wait" role="status">A analisar o pedido e todos os anexos… <strong id="pilot-ai-elapsed">0:00</strong></p><p class="smalltext muted">Uma análise completa pode levar até 10 minutos. Podes continuar a trabalhar noutros pedidos: o resultado aparece aqui.</p></section>`;
+  if(!turns.length)return `<section class="card card-pad pilot-ai pilot-ai-cta no-print" id="pilot-ai"><div class="card-title"><h2>Obter orçamento</h2>${left}</div>
+    <p>Quando o pedido e os anexos estiverem completos, carrega no botão. A Forja analisa tudo e propõe as peças, as linhas do orçamento com as contas e o que falta perguntar ao cliente. Os custos vêm do teu catálogo e podes alterá-los. Revês tudo antes de aplicar.</p>
     <p class="smalltext muted">Telefones, emails, NIF e moradas do texto não são enviados. Nas fotos e PDFs, só as zonas que marcaste ficam tapadas.</p>${err}
-    <button type="button" class="primary" data-ai-run ${d?.remaining?'':'disabled'}>Inserir pedido</button></section>`;
+    <button type="button" class="primary" data-ai-run ${d?.remaining?'':'disabled'}>Obter orçamento →</button></section>`;
   const r=turns.at(-1).reading;
   const badge=st=>`<span class="pilot-ai-state pilot-ai-${st==='dito'?'said':st==='deduzido'?'deduced':'check'}">${esc(st)}</span>`;
   const lines=r.lines.map((l,i)=>{
@@ -152,7 +178,7 @@ function pilotAiHtml(p) {
   const pieces=r.pieces.length?`<details><summary>Peças (${r.pieces.length})</summary><div class="table-scroll"><table class="pilot-ai-table"><thead><tr><th>Peça</th><th>Medidas</th><th>Material</th><th>Qtd.</th><th>Fixação</th><th>Origem</th></tr></thead><tbody>
     ${r.pieces.map(x=>`<tr><td>${esc(x.piece)} ${badge(x.state)}</td><td>${esc(x.measures)}</td><td>${esc(x.material)}</td><td>${esc(x.qty)}</td><td>${esc(x.fixing)}</td><td><small>${esc(x.origin)}</small></td></tr>`).join('')}</tbody></table></div></details>`:'';
   const history=turns.slice(1).map(t=>`<li><small>${new Date(t.at).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</small> ${esc(t.ask)}</li>`).join('');
-  return `<section class="card card-pad pilot-ai no-print"><div class="card-title"><h2>Inserir pedido</h2>${left}</div>
+  return `<section class="card card-pad pilot-ai no-print" id="pilot-ai"><div class="card-title"><h2>Orçamento proposto</h2>${left}</div>
     ${r.reply?`<p class="pilot-ai-reply">${esc(r.reply)}</p>`:''}
     <p>${esc(r.summary)}</p>${pieces}
     ${r.lines.length?`<h3>Linhas propostas</h3><p class="smalltext muted">Escolhe as que entram no orçamento. O custo vem do catálogo e podes alterá-lo. A barra mostra quanto o artigo do catálogo bate com a linha; sem correspondência, o custo fica por indicar.</p><ul class="pilot-ai-lines">${lines}</ul>`:''}
@@ -163,7 +189,7 @@ function pilotAiHtml(p) {
     <div class="pilot-ai-actions">${pilotAi.applied[p.id]===turns.at(-1).at?'<span class="smalltext muted">Esta leitura já foi aplicada. Se corrigires, a nova leitura pode ser aplicada outra vez (as linhas antigas ficam; apaga as que sobrarem).</span>':`<button type="button" class="primary" data-ai-apply ${r.lines.length||r.missing.length?'':'disabled'}>Aplicar ao orçamento e à memória</button>`}</div>
     <div class="pilot-ai-ask"><label for="ai-ask">Corrigir ou perguntar</label>
       <textarea class="field" id="ai-ask" rows="2" maxlength="2000" placeholder="Ex.: são 2 portões iguais; a chapa é de 3 mm; não leva motor."></textarea>
-      <div class="pilot-ai-actions"><button type="button" data-ai-ask ${d.remaining?'':'disabled'}>Enviar</button><button type="button" class="small ghost" data-ai-restart ${d.remaining?'':'disabled'}>Recomeçar a leitura</button></div>
+      <div class="pilot-ai-actions"><button type="button" data-ai-ask ${d.remaining?'':'disabled'}>Enviar</button><button type="button" class="small ghost" data-ai-restart ${d.remaining?'':'disabled'}>Analisar de novo</button></div>
       ${history?`<ul class="pilot-ai-history">${history}</ul>`:''}</div></section>`;
 }
 function pilotAiApply(p) {
@@ -189,9 +215,12 @@ function pilotAiApply(p) {
 async function pilotAiRun(p,body) {
   pilotAi.loading=true;pilotAi.error='';render();
   try {
-    if(!await window.forjaPilot.flush())throw new Error('Guarda o pedido antes de pedir a leitura.');
+    if(!await window.forjaPilot.flush())throw new Error('Guarda o pedido antes de pedir o orçamento.');
     const out=await window.forjaPilot.ai.run(p.id,body);
-    pilotAi.data={...pilotAi.data,remaining:out.remaining,turns:out.turns};pilotAi.off=new Set();pilotAi.prices={};
+    pilotAi.data={...pilotAi.data,remaining:out.remaining,started:out.started,pending:true};
+    pilotAiPoll(p.id);
+    if(view==='detail')render();
+    return;
   } catch(e) {pilotAi.error=e.message;}
   pilotAi.loading=false;
   if(pilotAi.pid===p.id && view==='detail')render();

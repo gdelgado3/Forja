@@ -132,7 +132,7 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
     CREATE UNIQUE INDEX IF NOT EXISTS workshops_form ON workshops(form_token);
     CREATE TABLE IF NOT EXISTS ai_threads(workshop TEXT REFERENCES workshops(id),project TEXT NOT NULL,turns TEXT NOT NULL,updated TEXT NOT NULL,PRIMARY KEY(workshop,project));
     CREATE TABLE IF NOT EXISTS ai_calls(workshop TEXT,created TEXT NOT NULL,input INTEGER,output INTEGER,ok INTEGER NOT NULL);`);
-  const aiBusy=new Set();
+  const aiJobs=new Map();
   const aiRemaining=office=>{
     const since=new Date(Date.now()-day).toISOString();
     const used=office.demo?db.prepare('SELECT COUNT(*) AS n FROM ai_calls WHERE workshop=? AND ok=1').get(office.id).n
@@ -512,8 +512,9 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
       }
       const ai=path.match(/^\/api\/pilot\/ai\/([a-zA-Z0-9_-]{1,100})$/);
       if(ai && req.method==='GET') {
-        const office=workshopLookup.get(auth.workshop);
-        return reply(res,{enabled:!!aiKey,remaining:aiRemaining(office),demo:!!office.demo,turns:aiPublic(aiThread(office.id,ai[1]))});
+        const office=workshopLookup.get(auth.workshop),job=aiJobs.get(office.id+'/'+ai[1]);
+        return reply(res,{enabled:!!aiKey,remaining:aiRemaining(office),demo:!!office.demo,turns:aiPublic(aiThread(office.id,ai[1])),
+          pending:job?.status==='running',started:job?.started||null,error:job?.status==='error'?job.error:''});
       }
       if(ai && req.method==='POST') {
         requireValue(aiKey,'A leitura de pedidos ainda não está ligada neste servidor.',503);
@@ -521,34 +522,41 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
         const ask=typeof input.message==='string'?input.message.trim().slice(0,2000):'';
         const office=workshopLookup.get(auth.workshop),state=JSON.parse(office.state);
         const project=state.projects.find(p=>p.id===ai[1]);
-        requireValue(project,'Guarda o pedido antes de o mandar ler.',404);
-        requireValue(String(project.request||'').trim() || project.files.length,'Escreve o pedido ou junta um anexo antes de pedir a leitura.');
-        requireValue(aiRemaining(office)>0,office.demo?`A demonstração permite ${aiDemoLimit} pedidos inseridos. Fala connosco para um piloto.`:'Chegaste ao limite diário de pedidos inseridos.',429);
+        requireValue(project,'Guarda o pedido antes de pedir o orçamento.',404);
+        requireValue(String(project.request||'').trim() || project.files.length,'Escreve o pedido ou junta um anexo antes de pedir o orçamento.');
+        requireValue(aiRemaining(office)>0,office.demo?`A demonstração permite ${aiDemoLimit} orçamentos. Fala connosco para um piloto.`:'Chegaste ao limite diário de orçamentos.',429);
         requireValue(db.prepare('SELECT COUNT(*) AS n FROM ai_calls WHERE created>?').get(new Date(Date.now()-day).toISOString()).n<aiGlobalDaily,'A leitura de pedidos está em pausa por hoje. Tenta amanhã.',429);
         const key=office.id+'/'+project.id;
-        requireValue(!aiBusy.has(key),'Já há uma leitura em curso para este pedido.',409);
+        requireValue(aiJobs.get(key)?.status!=='running','Este pedido já está a ser analisado.',409);
         let turns=input.restart?[]:aiThread(office.id,project.id);
-        requireValue(turns.length<10,'Esta conversa já vai longa. Recomeça a leitura.',409);
+        requireValue(turns.length<10,'Esta conversa já vai longa. Recomeça a análise.',409);
         requireValue(!turns.length || ask,'Escreve a correção ou a pergunta.');
-        aiBusy.add(key);
-        try {
-          const files=project.files.map(f=>({name:String(f.name||'anexo'),...(db.prepare('SELECT mime,bytes FROM attachments WHERE workshop=? AND id=?').get(office.id,f.id)||{})})).filter(f=>f.bytes);
-          const messages=[firstMessage(project,files,state.settings?.catalog||[]).message];
-          // Cada leitura anterior volta como resposta da ferramenta, seguida da mensagem da oficina que veio a seguir.
-          turns.forEach((t,i)=>{
-            messages.push({role:'assistant',content:[t.toolUse]});
-            messages.push({role:'user',content:[{type:'tool_result',tool_use_id:t.toolUse.id,content:'Leitura recebida pela oficina.'},
-              {type:'text',text:'Mensagem da oficina: '+(turns[i+1]?.ask ?? ask)}]});
-          });
-          let result;
-          try { result=await callClaude(messages,{apiKey:aiKey,model:aiModel,fetchImpl:aiFetch}); }
-          catch(e) { db.prepare('INSERT INTO ai_calls VALUES(?,?,?,?,0)').run(office.id,time(),0,0); throw new HttpError(e.status||502,e.message); }
-          db.prepare('INSERT INTO ai_calls VALUES(?,?,?,?,1)').run(office.id,time(),result.usage.input_tokens||0,result.usage.output_tokens||0);
-          const {id,name,input:toolInput}=result.toolUse;
-          turns=[...turns,{ask:turns.length?ask:'',at:time(),reading:result.reading,toolUse:{type:'tool_use',id,name,input:toolInput}}];
-          db.prepare('INSERT INTO ai_threads VALUES(?,?,?,?) ON CONFLICT(workshop,project) DO UPDATE SET turns=excluded.turns,updated=excluded.updated').run(office.id,project.id,JSON.stringify(turns),time());
-          return reply(res,{remaining:aiRemaining(office),turns:aiPublic(turns)});
-        } finally { aiBusy.delete(key); }
+        const files=project.files.map(f=>({name:String(f.name||'anexo'),...(db.prepare('SELECT mime,bytes FROM attachments WHERE workshop=? AND id=?').get(office.id,f.id)||{})})).filter(f=>f.bytes);
+        const messages=[firstMessage(project,files,state.settings?.catalog||[]).message];
+        // Cada análise anterior volta como resposta da ferramenta, seguida da mensagem da oficina que veio a seguir.
+        turns.forEach((t,i)=>{
+          messages.push({role:'assistant',content:t.content||[t.toolUse]});
+          messages.push({role:'user',content:[{type:'tool_result',tool_use_id:t.toolUse.id,content:'Leitura recebida pela oficina.'},
+            {type:'text',text:'Mensagem da oficina: '+(turns[i+1]?.ask ?? ask)}]});
+        });
+        const started=time();
+        aiJobs.set(key,{status:'running',started});
+        // Corre em segundo plano (até 10 minutos); a página vai perguntando pelo resultado.
+        (async()=>{
+          try {
+            const result=await callClaude(messages,{apiKey:aiKey,model:aiModel,fetchImpl:aiFetch,thinking:!turns.some(t=>!t.content)});
+            db.prepare('INSERT INTO ai_calls VALUES(?,?,?,?,1)').run(office.id,time(),result.usage.input_tokens||0,result.usage.output_tokens||0);
+            const {id,name,input:toolInput}=result.toolUse;
+            const next=[...turns,{ask:turns.length?ask:'',at:time(),reading:result.reading,toolUse:{type:'tool_use',id,name,input:toolInput},content:result.content}];
+            db.prepare('INSERT INTO ai_threads VALUES(?,?,?,?) ON CONFLICT(workshop,project) DO UPDATE SET turns=excluded.turns,updated=excluded.updated').run(office.id,project.id,JSON.stringify(next),time());
+            aiJobs.delete(key);
+          } catch(e) {
+            try { db.prepare('INSERT INTO ai_calls VALUES(?,?,?,?,0)').run(office.id,time(),0,0); } catch { /* base fechada */ }
+            if(e.detail) console.error('Análise falhou:',e.detail);
+            aiJobs.set(key,{status:'error',started,error:e.message||'Não foi possível analisar o pedido.'});
+          }
+        })();
+        return reply(res,{pending:true,started,remaining:aiRemaining(office),turns:aiPublic(turns)},202);
       }
       if(path==='/api/pilot/requests' && req.method==='GET') {
         return reply(res,db.prepare('SELECT * FROM public_requests WHERE workshop=? AND submitted IS NOT NULL AND imported IS NULL ORDER BY submitted').all(auth.workshop).map(publicProject));
@@ -587,6 +595,12 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
         res.writeHead(200,{'Content-Type':attachment.mime,'Cache-Control':'no-store','Content-Disposition':'attachment'});
         return res.end(attachment.bytes);
       }
+      if(file && req.method==='DELETE') {
+        // Só apaga se nenhum projeto nem versão guardada o usar.
+        requireValue(!workshopLookup.get(auth.workshop).state.includes('"'+file[1]+'"'),'Este anexo ainda está a ser usado num projeto ou numa versão guardada.',409);
+        db.prepare('DELETE FROM attachments WHERE workshop=? AND id=?').run(auth.workshop,file[1]);
+        return reply(res,{ok:true});
+      }
       if(file && req.method==='PUT') {
         const mime=safeMime.has(req.headers['content-type'])?req.headers['content-type']:'application/octet-stream';
         const isDemo=!!workshopLookup.get(auth.workshop).demo;
@@ -606,7 +620,7 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
     } catch(e) {
       if (e.code==='ENOENT') return reply(res,{error:'Ficheiro não encontrado.'},404);
       if (e instanceof HttpError) return reply(res,{error:e.message},e.status);
-      console.error('Erro no piloto',e.name,e.code||'');
+      console.error('Erro no piloto',e.name,e.code||'',process.env.FORJA_DEBUG?e.stack:'');
       return reply(res,{error:'A Forja não conseguiu concluir esta operação.'},500);
     }
   });
