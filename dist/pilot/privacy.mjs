@@ -2,7 +2,7 @@
 // Tudo corre no browser: o texto, as imagens e os PDFs são limpos no aparelho da oficina.
 
 const MAX_ZONES = 5;
-const MAX_PDF_PAGES = 20;
+const MAX_PDF_PAGES = 12;
 
 // ---------- Texto ----------
 
@@ -123,7 +123,7 @@ async function renderPage(pdf, number, targetWidth = 1600) {
   canvas.width = Math.round(viewport.width);
   canvas.height = Math.round(viewport.height);
   await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-  return { canvas, widthPt: base.width, heightPt: base.height };
+  return { canvas, widthPt: base.width, heightPt: base.height, page, viewport };
 }
 
 export async function pdfText(blob, maxPages = 5) {
@@ -178,41 +178,184 @@ async function imagesToPdf(pages) {
   return new Blob(parts, { type: 'application/pdf' });
 }
 
-// ---------- Preparar um ficheiro para enviar ----------
-// Devolve {blob, previews:[canvas], note}. previews vazio = nada a mostrar antes de enviar.
+// ---------- Deteção automática de dados pessoais nas folhas ----------
+// Lê a folha no aparelho (texto do PDF ou OCR local), encontra dados pessoais e devolve retângulos para tapar.
 
-export async function prepareUpload(blob, zonesInput) {
-  const zones = validZones(zonesInput);
+const LABEL = /\b(nome(?:\s+do\s+cliente)?|cliente|requerente|dono\s+d[ae]\s+obra|morada|endere[cç]o|contactos?|telefone|telem[oó]vel|tlm|tlf|tel|e-?mail|nif|nipc|contribuinte|assinatura)\s*[.:]\s*/i;
+
+// tokens: [{text, x, y, w, h}] de uma linha, em píxeis da página. Devolve os retângulos a tapar.
+function detectLine(tokens, known) {
+  let line = '', spans = [];
+  for (const t of tokens) { const start = line.length ? line.length + 1 : 0; line += (line ? ' ' : '') + t.text; spans.push([start, start + t.text.length]); }
+  const hits = [];
+  for (const [, pattern] of RULES) { pattern.lastIndex = 0; for (const m of line.matchAll(pattern)) hits.push([m.index, m.index + m[0].length]); }
+  for (const m of line.matchAll(/(?<!\d|\d[,.])\d{9}(?!\d|[,.]\d)/g)) if (validNif(m[0])) hits.push([m.index, m.index + 9]);
+  for (const w of known) for (const m of line.matchAll(new RegExp(`(?<![\\p{L}])${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`, 'giu'))) hits.push([m.index, m.index + m[0].length]);
+  const label = line.match(LABEL);
+  let labelOnly = false;
+  if (label) {
+    const from = label.index + label[0].length;
+    if (line.slice(from).trim()) hits.push([from, line.length]); else labelOnly = true;
+  }
+  const boxes = [];
+  for (const [a, b] of hits) {
+    // Junta num só retângulo as partes dos tokens que caem dentro do que se encontrou (os itens dos PDFs podem ser frases inteiras).
+    let u = null;
+    tokens.forEach((t, k) => {
+      const [s0, s1] = spans[k];
+      if (s1 <= a || s0 >= b) return;
+      const from = Math.max(0, a - s0) / t.text.length, to = Math.min(t.text.length, b - s0) / t.text.length;
+      const r = { x: t.x + t.w * from, y: t.y, x2: t.x + t.w * to, y2: t.y + t.h };
+      u = u ? { x: Math.min(u.x, r.x), y: Math.min(u.y, r.y), x2: Math.max(u.x2, r.x2), y2: Math.max(u.y2, r.y2) } : r;
+    });
+    if (u) boxes.push({ x: u.x, y: u.y, w: u.x2 - u.x, h: u.y2 - u.y });
+  }
+  // Retângulos sobrepostos (vários padrões no mesmo dado) contam como um.
+  const merged = [];
+  for (const bx of boxes.sort((p, q) => p.x - q.x)) {
+    const m = merged.find(o => bx.x <= o.x + o.w + 2 && bx.y < o.y + o.h && bx.y + bx.h > o.y);
+    if (m) { const x2 = Math.max(m.x + m.w, bx.x + bx.w), y2 = Math.max(m.y + m.h, bx.y + bx.h); m.y = Math.min(m.y, bx.y); m.w = x2 - m.x; m.h = y2 - m.y; } else merged.push({ ...bx });
+  }
+  return { boxes: merged, labelOnly };
+}
+
+function detectLines(lines, known) {
+  const boxes = [];
+  lines.forEach((tokens, i) => {
+    const r = detectLine(tokens, known);
+    boxes.push(...r.boxes);
+    // "Nome:" sozinho numa linha: o valor costuma estar na linha de baixo.
+    if (r.labelOnly && lines[i + 1]) for (const t of lines[i + 1]) boxes.push({ x: t.x, y: t.y, w: t.w, h: t.h });
+  });
+  return boxes;
+}
+
+// Linhas de um PDF com texto, em píxeis do canvas.
+async function pdfLines(page, viewport) {
+  const content = await page.getTextContent();
+  const rows = [];
+  for (const item of content.items) {
+    if (!item.str?.trim() || !item.transform) continue;
+    const [a, b, c, d, e, f] = viewport.transform;
+    const pt = (x, y) => [a * x + c * y + e, b * x + d * y + f];
+    const hgt = item.height || Math.hypot(item.transform[2], item.transform[3]) || 10;
+    const [x0, y0] = pt(item.transform[4], item.transform[5] - hgt * 0.25), [x1, y1] = pt(item.transform[4] + (item.width || 0), item.transform[5] + hgt);
+    const t = { text: item.str.trim(), x: Math.min(x0, x1), y: Math.min(y0, y1), w: Math.abs(x1 - x0), h: Math.abs(y1 - y0) };
+    let row = rows.find(r => Math.abs(r.y - t.y) < t.h * 0.5);
+    if (!row) rows.push(row = { y: t.y, tokens: [] });
+    row.tokens.push(t);
+  }
+  return rows.sort((a, b) => a.y - b.y).map(r => r.tokens.sort((a, b) => a.x - b.x));
+}
+
+let ocrWorker = null;
+async function ocrLines(canvas) {
+  if (!window.Tesseract) await new Promise((ok, fail) => { const sc = document.createElement('script'); sc.src = '/vendor/ocr/tesseract.min.js'; sc.onload = ok; sc.onerror = () => fail(new Error('OCR indisponível')); document.head.append(sc); });
+  ocrWorker ||= await window.Tesseract.createWorker('por+eng', 1, { workerPath: '/vendor/ocr/worker.min.js', corePath: '/vendor/ocr/tesseract-core-lstm.wasm.js', langPath: '/vendor/ocr' });
+  // O OCR corre numa cópia mais pequena (mais rápido); as caixas voltam à escala da página.
+  const scale = Math.min(1, 2000 / Math.max(canvas.width, canvas.height));
+  let src = canvas;
+  if (scale < 1) { src = document.createElement('canvas'); src.width = Math.round(canvas.width * scale); src.height = Math.round(canvas.height * scale); src.getContext('2d').drawImage(canvas, 0, 0, src.width, src.height); }
+  await ocrWorker.setParameters({ tessedit_pageseg_mode: '11' });
+  const { data } = await ocrWorker.recognize(src, {}, { blocks: true });
+  const lines = [];
+  for (const block of data.blocks || []) for (const par of block.paragraphs || []) for (const line of par.lines || []) {
+    const words = (line.words || []).filter(w => w.text?.trim() && w.confidence > 30).map(w => ({ text: w.text.trim(), x: w.bbox.x0 / scale, y: w.bbox.y0 / scale, w: (w.bbox.x1 - w.bbox.x0) / scale, h: (w.bbox.y1 - w.bbox.y0) / scale }));
+    if (words.length) lines.push(words);
+  }
+  return lines;
+}
+
+function knownWords() {
+  try {
+    const name = String((typeof window.project === 'function' && window.project()?.client) || '').trim();
+    const common = new Set(['cliente', 'exemplo', 'senhor', 'senhora', 'dona', 'eng', 'arq', 'obra', 'empresa', 'lda', 'unipessoal']);
+    return name.split(/\s+/).filter(w => w.length >= 3 && /^\p{Lu}/u.test(w) && !common.has(w.toLowerCase()));
+  } catch { return []; }
+}
+
+const pad = (b, W, H) => {
+  const px = Math.max(3, b.h * 0.25), py = Math.max(2, b.h * 0.2);
+  const x = Math.max(0, b.x - px), y = Math.max(0, b.y - py);
+  return { x: x / W, y: y / H, w: Math.min(W - x, b.w + 2 * px) / W, h: Math.min(H - y, b.h + 2 * py) / H, auto: true };
+};
+
+// ---------- Preparar um ficheiro para enviar ----------
+// Devolve as páginas com os retângulos propostos (zonas da oficina + deteção automática), para rever antes de enviar.
+export async function prepareUpload(blob, zonesInput, onStatus = () => {}) {
+  const zones = validZones(zonesInput).map(z => ({ ...z, zone: true }));
   const type = blob.type || '';
+  const known = knownWords();
   if (/^image\/(jpeg|png|webp)$/.test(type)) {
     const canvas = await imageToCanvas(blob);
-    if (zones.length) paintZones(canvas.getContext('2d'), canvas.width, canvas.height, zones);
-    const out = await canvasBlob(canvas, type === 'image/png' ? 'image/png' : 'image/jpeg', 0.9);
-    // Sem zonas, só tirámos os metadados (EXIF/GPS): não há nada novo para mostrar.
-    return { blob: out, previews: zones.length ? [canvas] : [], note: zones.length ? 'A zona dos dados do cliente foi tapada.' : '' };
+    onStatus('A procurar dados pessoais na imagem…');
+    let lines = [];
+    try { lines = await ocrLines(canvas); } catch { /* sem OCR: fica só com as zonas */ }
+    const auto = detectLines(lines, known).map(b => pad(b, canvas.width, canvas.height));
+    const wordCount = lines.reduce((n, l) => n + l.length, 0);
+    return { kind: 'image', type: type === 'image/png' ? 'image/png' : 'image/jpeg', original: blob, pages: [{ canvas, boxes: [...zones, ...auto] }], auto: auto.length,
+      // Só pede revisão quando há algo tapado ou a imagem parece uma folha com texto.
+      review: zones.length > 0 || auto.length > 0 || wordCount >= 12 };
   }
   if (type === 'application/pdf') {
-    if (!zones.length) {
-      let risky = false;
-      try { risky = containsPersonalData(await pdfText(blob)); } catch { /* PDF sem texto legível */ }
-      return { blob, previews: [], note: '', warning: risky ? 'Este PDF tem contactos ou um NIF no texto. Marca a zona dos dados do cliente em "Proteger dados dos clientes" para os tapar antes de enviar.' : '' };
-    }
     const pdf = await openPdf(blob);
-    if (pdf.numPages > MAX_PDF_PAGES) throw new Error(`Para tapar dados, o PDF pode ter até ${MAX_PDF_PAGES} páginas.`);
-    const pages = [], previews = [];
+    if (pdf.numPages > MAX_PDF_PAGES) throw new Error(`Para proteger os dados, o PDF pode ter até ${MAX_PDF_PAGES} páginas.`);
+    const pages = [];
+    let auto = 0, words = 0;
     for (let n = 1; n <= pdf.numPages; n++) {
-      const { canvas, widthPt, heightPt } = await renderPage(pdf, n);
-      paintZones(canvas.getContext('2d'), canvas.width, canvas.height, zones);
-      const jpeg = new Uint8Array(await (await canvasBlob(canvas, 'image/jpeg', 0.85)).arrayBuffer());
-      pages.push({ jpeg, width: canvas.width, height: canvas.height, widthPt, heightPt });
-      if (n === 1) previews.push(canvas);
+      onStatus(`A procurar dados pessoais na página ${n} de ${pdf.numPages}…`);
+      const r = await renderPage(pdf, n, 1400);
+      let lines = await pdfLines(r.page, r.viewport);
+      if (lines.reduce((k, l) => k + l.length, 0) < 3) { try { lines = await ocrLines(r.canvas); } catch { lines = []; } }
+      words += lines.reduce((k, l) => k + l.length, 0);
+      const found = detectLines(lines, known).map(b => pad(b, r.canvas.width, r.canvas.height));
+      auto += found.length;
+      pages.push({ canvas: r.canvas, widthPt: r.widthPt, heightPt: r.heightPt, boxes: [...zones, ...found] });
     }
-    return { blob: await imagesToPdf(pages), previews, note: `A zona dos dados do cliente foi tapada em ${pdf.numPages} página(s). O texto escondido por baixo também foi removido.` };
+    return { kind: 'pdf', type, original: blob, pages, auto, review: zones.length > 0 || auto > 0 || words >= 12 };
   }
-  return { blob, previews: [], note: '' };
+  return { kind: 'other', original: blob, pages: [], auto: 0, review: false };
+}
+
+function paintBoxes(ctx, W, H, boxes, preview) {
+  for (const b of boxes) {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(b.x * W, b.y * H, b.w * W, b.h * H);
+    if (preview) { ctx.strokeStyle = b.auto ? '#c47835' : '#2f7d55'; ctx.lineWidth = Math.max(2, W / 400); ctx.strokeRect(b.x * W, b.y * H, b.w * W, b.h * H); }
+  }
+}
+
+// Faz o ficheiro final: imagem sem metadados, ou PDF refeito em imagem (sem camada de texto) quando há algo tapado.
+export async function finishUpload(result) {
+  if (result.kind === 'image') {
+    const src = result.pages[0].canvas, out = document.createElement('canvas');
+    out.width = src.width; out.height = src.height;
+    const ctx = out.getContext('2d'); ctx.drawImage(src, 0, 0); paintBoxes(ctx, out.width, out.height, result.pages[0].boxes, false);
+    return canvasBlob(out, result.type, 0.9);
+  }
+  if (result.kind === 'pdf') {
+    if (!result.pages.some(p => p.boxes.length)) return result.original;
+    const pages = [];
+    for (const p of result.pages) {
+      const out = document.createElement('canvas'); out.width = p.canvas.width; out.height = p.canvas.height;
+      const ctx = out.getContext('2d'); ctx.drawImage(p.canvas, 0, 0); paintBoxes(ctx, out.width, out.height, p.boxes, false);
+      pages.push({ jpeg: new Uint8Array(await (await canvasBlob(out, 'image/jpeg', 0.85)).arrayBuffer()), width: out.width, height: out.height, widthPt: p.widthPt, heightPt: p.heightPt });
+    }
+    return imagesToPdf(pages);
+  }
+  return result.original;
 }
 
 // ---------- Janelas ----------
+
+// Aviso pequeno enquanto a folha é lida (o OCR pode levar uns segundos, sobretudo na primeira vez).
+export function busy(text) {
+  const el = document.createElement('div');
+  el.className = 'pv-busy'; el.setAttribute('role', 'status');
+  el.textContent = text;
+  document.body.append(el);
+  return { set: t => { el.textContent = t; }, close: () => el.remove() };
+}
 
 function overlay(html) {
   const wrap = document.createElement('div');
@@ -224,20 +367,51 @@ function overlay(html) {
   return wrap;
 }
 
-export function confirmPreview(result, fileName) {
-  if (!result.previews.length && !result.warning) return Promise.resolve(true);
+// Revisão antes de enviar: retângulos laranja = encontrados automaticamente, verdes = zonas da oficina.
+// Tocar num retângulo tira-o; arrastar tapa mais. Devolve o ficheiro final, ou null se cancelar.
+export function reviewUpload(result, fileName) {
+  if (!result.review) return finishUpload(result);
   return new Promise(resolve => {
+    const total = result.pages.reduce((n, p) => n + p.boxes.length, 0);
     const box = overlay(`<h2>Antes de enviar: ${escapeHtml(fileName || 'ficheiro')}</h2>
-      ${result.warning ? `<p class="pv-warn">${escapeHtml(result.warning)}</p>` : `<p>${escapeHtml(result.note)} Confirma que os dados do cliente estão tapados.</p>`}
+      <p>${result.auto ? `A Forja encontrou e tapou <b>${result.auto}</b> dado(s) pessoal(is) (a laranja).` : 'A Forja não encontrou dados pessoais escritos de forma legível.'} Confirma que nome, morada, contactos e NIF do cliente estão tapados.</p>
+      <p class="smalltext muted">Arrasta sobre a folha para tapar mais. Toca num retângulo para o retirar.</p>
       <div class="pv-previews"></div>
-      <div class="pv-actions"><button type="button" class="primary" data-pv="ok">${result.warning ? 'Enviar assim' : 'Está tapado, enviar'}</button><button type="button" data-pv="cancel">Cancelar</button></div>`);
-    for (const c of result.previews) { c.className = 'pv-canvas'; box.querySelector('.pv-previews').append(c); }
+      <p class="pv-count" role="status"></p>
+      <div class="pv-actions"><button type="button" class="primary" data-pv="ok">Está tapado, enviar</button><button type="button" data-pv="cancel">Cancelar</button></div>`);
+    const holder = box.querySelector('.pv-previews'), count = box.querySelector('.pv-count');
+    const shown = result.pages.slice(0, 10);
+    const views = shown.map(page => {
+      const c = document.createElement('canvas'); c.width = page.canvas.width; c.height = page.canvas.height; c.className = 'pv-canvas pv-draw'; c.style.touchAction = 'none';
+      holder.append(c);
+      const draw = drag => { const ctx = c.getContext('2d'); ctx.drawImage(page.canvas, 0, 0); paintBoxes(ctx, c.width, c.height, page.boxes, true); if (drag) { ctx.strokeStyle = '#2f7d55'; ctx.lineWidth = Math.max(2, c.width / 300); ctx.strokeRect(drag.x * c.width, drag.y * c.height, drag.w * c.width, drag.h * c.height); } };
+      const point = e => { const r = c.getBoundingClientRect(); return { x: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), y: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)) }; };
+      let drag = null;
+      c.addEventListener('pointerdown', e => { c.setPointerCapture(e.pointerId); const p = point(e); drag = { sx: p.x, sy: p.y, x: p.x, y: p.y, w: 0, h: 0 }; });
+      c.addEventListener('pointermove', e => { if (!drag) return; const p = point(e); drag.x = Math.min(drag.sx, p.x); drag.y = Math.min(drag.sy, p.y); drag.w = Math.abs(p.x - drag.sx); drag.h = Math.abs(p.y - drag.sy); draw(drag); });
+      c.addEventListener('pointerup', () => {
+        if (!drag) return;
+        const d = drag; drag = null;
+        if (d.w < 0.01 && d.h < 0.01) {
+          // Toque: retira o retângulo por baixo do dedo.
+          const k = page.boxes.findLastIndex(b => d.x >= b.x && d.x <= b.x + b.w && d.y >= b.y && d.y <= b.y + b.h);
+          if (k >= 0) page.boxes.splice(k, 1);
+        } else page.boxes.push({ x: d.x, y: d.y, w: d.w, h: d.h, manual: true });
+        draw(); update();
+      });
+      draw();
+      return draw;
+    });
+    const update = () => { const n = result.pages.reduce((k, p) => k + p.boxes.length, 0); count.textContent = `${n} retângulo(s) a tapar${result.pages.length > shown.length ? ` · só as primeiras ${shown.length} páginas aparecem aqui` : ''}.`; };
+    update(); void total; void views;
     box.querySelector('[data-pv="ok"]').focus();
-    box.addEventListener('click', e => {
+    box.addEventListener('click', async e => {
       const b = e.target.closest('[data-pv]');
       if (!b) return;
-      box.remove();
-      resolve(b.dataset.pv === 'ok');
+      if (b.dataset.pv === 'cancel') { box.remove(); resolve(null); return; }
+      b.disabled = true; b.textContent = 'A preparar…';
+      try { const out = await finishUpload(result); box.remove(); resolve(out); }
+      catch (err) { b.disabled = false; b.textContent = 'Está tapado, enviar'; count.textContent = err.message; }
     });
   });
 }

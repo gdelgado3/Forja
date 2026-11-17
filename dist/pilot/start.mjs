@@ -292,10 +292,13 @@ async function workshop() {
     },
     async flush() {await queue;return !failure;},
     async putFile(id,blob) {
-      const prepared=await privacy.prepareUpload(blob,zones);
-      if(!await privacy.confirmPreview(prepared,blob.name))throw new Error('Envio cancelado. O ficheiro não foi guardado.');
-      await request('/files/'+encodeURIComponent(id),{method:'PUT',blob:prepared.blob});
-      return {size:prepared.blob.size,type:prepared.blob.type};
+      let prepared;
+      const status=privacy.busy('A proteger os dados pessoais de '+(blob.name||'ficheiro')+'…');
+      try { prepared=await privacy.prepareUpload(blob,zones,t=>status.set(t)); } finally { status.close(); }
+      const ready=await privacy.reviewUpload(prepared,blob.name);
+      if(!ready)throw new Error('Envio cancelado. O ficheiro não foi guardado.');
+      await request('/files/'+encodeURIComponent(id),{method:'PUT',blob:ready});
+      return {size:ready.size,type:ready.type};
     },
     privacyZones:()=>zones.length,
     pdfText:(blob,pages)=>privacy.pdfText(blob,pages),
