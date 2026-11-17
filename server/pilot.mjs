@@ -1,5 +1,6 @@
 import http from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
+import { MODEL, firstMessage, callClaude } from './agent.mjs';
 import { randomBytes, createHash, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import { mkdir, readFile } from 'node:fs/promises';
@@ -112,7 +113,8 @@ function usage(state) {
 }
 
 export async function createPilotServer({root=resolve(dirname(fileURLToPath(import.meta.url)),'..','dist'),
-  database=resolve('dados-piloto','forja.sqlite'), origin, secure=false, setupCode='', trustProxy=false, maxStorage=350*1024*1024}={}) {
+  database=resolve('dados-piloto','forja.sqlite'), origin, secure=false, setupCode='', trustProxy=false, maxStorage=350*1024*1024,
+  aiKey='', aiModel=MODEL, aiFetch=fetch, aiDemoLimit=3, aiDailyLimit=60, aiGlobalDaily=300}={}) {
   if (database !== ':memory:') await mkdir(dirname(database),{recursive:true,mode:0o700});
   const db = new DatabaseSync(database);
   db.exec(`PRAGMA foreign_keys=ON;
@@ -127,7 +129,21 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
   try { db.exec('ALTER TABLE workshops ADD COLUMN demo INTEGER NOT NULL DEFAULT 0'); } catch { /* coluna já existe */ }
   try { db.exec('ALTER TABLE workshops ADD COLUMN form_token TEXT'); } catch { /* coluna já existe */ }
   db.exec(`CREATE TABLE IF NOT EXISTS public_requests(id TEXT PRIMARY KEY,workshop TEXT REFERENCES workshops(id),key TEXT NOT NULL,data TEXT NOT NULL,files TEXT NOT NULL DEFAULT '[]',created TEXT NOT NULL,submitted TEXT,imported TEXT);
-    CREATE UNIQUE INDEX IF NOT EXISTS workshops_form ON workshops(form_token);`);
+    CREATE UNIQUE INDEX IF NOT EXISTS workshops_form ON workshops(form_token);
+    CREATE TABLE IF NOT EXISTS ai_threads(workshop TEXT REFERENCES workshops(id),project TEXT NOT NULL,turns TEXT NOT NULL,updated TEXT NOT NULL,PRIMARY KEY(workshop,project));
+    CREATE TABLE IF NOT EXISTS ai_calls(workshop TEXT,created TEXT NOT NULL,input INTEGER,output INTEGER,ok INTEGER NOT NULL);`);
+  const aiBusy=new Set();
+  const aiRemaining=office=>{
+    const since=new Date(Date.now()-day).toISOString();
+    const used=office.demo?db.prepare('SELECT COUNT(*) AS n FROM ai_calls WHERE workshop=? AND ok=1').get(office.id).n
+      :db.prepare('SELECT COUNT(*) AS n FROM ai_calls WHERE workshop=? AND ok=1 AND created>?').get(office.id,since).n;
+    return Math.max(0,(office.demo?aiDemoLimit:aiDailyLimit)-used);
+  };
+  const aiThread=(workshop,project)=>{
+    const row=db.prepare('SELECT turns FROM ai_threads WHERE workshop=? AND project=?').get(workshop,project);
+    return row?JSON.parse(row.turns):[];
+  };
+  const aiPublic=turns=>turns.map(t=>({ask:t.ask,at:t.at,reading:t.reading}));
   const setupToken = db.prepare("SELECT 1 FROM users WHERE role='admin'").get() ? null : (setupCode || token());
   const setupExpires = setupCode ? Infinity : Date.now()+15*60*1000;
   const demoStarts = [];
@@ -485,6 +501,46 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
         db.prepare('UPDATE workshops SET state=?,last_use=? WHERE id=?').run(JSON.stringify(state),time(),office.id);
         return reply(res,{zones});
       }
+      const ai=path.match(/^\/api\/pilot\/ai\/([a-zA-Z0-9_-]{1,100})$/);
+      if(ai && req.method==='GET') {
+        const office=workshopLookup.get(auth.workshop);
+        return reply(res,{enabled:!!aiKey,remaining:aiRemaining(office),demo:!!office.demo,turns:aiPublic(aiThread(office.id,ai[1]))});
+      }
+      if(ai && req.method==='POST') {
+        requireValue(aiKey,'A leitura com IA ainda não está ligada neste servidor.',503);
+        const input=await jsonBody(req,16*1024);
+        const ask=typeof input.message==='string'?input.message.trim().slice(0,2000):'';
+        const office=workshopLookup.get(auth.workshop),state=JSON.parse(office.state);
+        const project=state.projects.find(p=>p.id===ai[1]);
+        requireValue(project,'Guarda o pedido antes de o mandar ler.',404);
+        requireValue(String(project.request||'').trim() || project.files.length,'Escreve o pedido ou junta um anexo antes de pedir a leitura.');
+        requireValue(aiRemaining(office)>0,office.demo?`A demonstração permite ${aiDemoLimit} leituras com IA. Fala connosco para um piloto.`:'Chegaste ao limite diário de leituras com IA.',429);
+        requireValue(db.prepare('SELECT COUNT(*) AS n FROM ai_calls WHERE created>?').get(new Date(Date.now()-day).toISOString()).n<aiGlobalDaily,'A leitura com IA está em pausa por hoje. Tenta amanhã.',429);
+        const key=office.id+'/'+project.id;
+        requireValue(!aiBusy.has(key),'Já há uma leitura em curso para este pedido.',409);
+        let turns=input.restart?[]:aiThread(office.id,project.id);
+        requireValue(turns.length<10,'Esta conversa já vai longa. Recomeça a leitura.',409);
+        requireValue(!turns.length || ask,'Escreve a correção ou a pergunta.');
+        aiBusy.add(key);
+        try {
+          const files=project.files.map(f=>({name:String(f.name||'anexo'),...(db.prepare('SELECT mime,bytes FROM attachments WHERE workshop=? AND id=?').get(office.id,f.id)||{})})).filter(f=>f.bytes);
+          const messages=[firstMessage(project,files,state.settings?.catalog||[]).message];
+          // Cada leitura anterior volta como resposta da ferramenta, seguida da mensagem da oficina que veio a seguir.
+          turns.forEach((t,i)=>{
+            messages.push({role:'assistant',content:[t.toolUse]});
+            messages.push({role:'user',content:[{type:'tool_result',tool_use_id:t.toolUse.id,content:'Leitura recebida pela oficina.'},
+              {type:'text',text:'Mensagem da oficina: '+(turns[i+1]?.ask ?? ask)}]});
+          });
+          let result;
+          try { result=await callClaude(messages,{apiKey:aiKey,model:aiModel,fetchImpl:aiFetch}); }
+          catch(e) { db.prepare('INSERT INTO ai_calls VALUES(?,?,?,?,0)').run(office.id,time(),0,0); throw new HttpError(e.status||502,e.message); }
+          db.prepare('INSERT INTO ai_calls VALUES(?,?,?,?,1)').run(office.id,time(),result.usage.input_tokens||0,result.usage.output_tokens||0);
+          const {id,name,input:toolInput}=result.toolUse;
+          turns=[...turns,{ask:turns.length?ask:'',at:time(),reading:result.reading,toolUse:{type:'tool_use',id,name,input:toolInput}}];
+          db.prepare('INSERT INTO ai_threads VALUES(?,?,?,?) ON CONFLICT(workshop,project) DO UPDATE SET turns=excluded.turns,updated=excluded.updated').run(office.id,project.id,JSON.stringify(turns),time());
+          return reply(res,{remaining:aiRemaining(office),turns:aiPublic(turns)});
+        } finally { aiBusy.delete(key); }
+      }
       if(path==='/api/pilot/requests' && req.method==='GET') {
         return reply(res,db.prepare('SELECT * FROM public_requests WHERE workshop=? AND submitted IS NOT NULL AND imported IS NULL ORDER BY submitted').all(auth.workshop).map(publicProject));
       }
@@ -556,7 +612,7 @@ if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href===import.met
   const hosted=!!process.env.PORT;
   const setupCode=process.env.FORJA_SETUP_CODE||'';
   if(setupCode && setupCode.length<24) throw Error('FORJA_SETUP_CODE deve ter pelo menos 24 caracteres.');
-  const {server,setupToken}=await createPilotServer({origin,secure:!!origin,setupCode,trustProxy:hosted,
+  const {server,setupToken}=await createPilotServer({origin,secure:!!origin,setupCode,trustProxy:hosted,aiKey:process.env.ANTHROPIC_API_KEY||'',
     database:process.env.FORJA_PILOT_DB||undefined});
   server.listen(hosted?Number(process.env.PORT):port,hosted?'0.0.0.0':'127.0.0.1',()=>{
     console.log(hosted?`Forja Piloto a escutar na porta ${process.env.PORT}`:`Forja Piloto: http://127.0.0.1:${port}`);

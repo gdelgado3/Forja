@@ -138,3 +138,27 @@
 .pv-file input { display:block; margin-top:6px; font-weight:400; }
 .pv-count, .pv-msg { margin:6px 0; font-size:13px; }
 @media(max-width:560px){ .pilot-link-row { flex-direction:column; } .pv-box { padding:16px; } }
+
+/* Leitura com IA */
+.pilot-ai { margin-bottom:18px; border:2px solid #214d3b; }
+.pilot-ai h3 { font-size:14px; margin:16px 0 6px; }
+.pilot-ai ul { margin:0; padding-left:18px; }
+.pilot-ai li { margin:4px 0; }
+.pilot-ai details { margin:10px 0; }
+.pilot-ai summary { cursor:pointer; font-weight:600; }
+.pilot-ai-lines { list-style:none; padding:0 !important; }
+.pilot-ai-lines label { display:flex; gap:10px; align-items:flex-start; padding:8px 0; border-bottom:1px solid #eceee8; }
+.pilot-ai-lines input { margin-top:3px; width:18px; height:18px; flex:none; }
+.pilot-ai-lines small { display:block; color:#6b6b6b; font-size:12px; }
+.pilot-ai-state { display:inline-block; font-size:11px; padding:1px 7px; border-radius:20px; margin-left:4px; }
+.pilot-ai-said { background:#dcefd9; color:#1f5a2b; }
+.pilot-ai-deduced { background:#e6edf7; color:#284a7a; }
+.pilot-ai-check { background:#fdebd3; color:#8a4b12; }
+.pilot-ai-reply { padding:10px 12px; border-radius:8px; background:#eef5f0; }
+.pilot-ai-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+.pilot-ai-ask { margin-top:16px; padding-top:12px; border-top:1px solid #eceee8; }
+.pilot-ai-ask label { font-weight:600; display:block; margin-bottom:6px; }
+.pilot-ai-history { font-size:13px; color:#555; margin-top:8px !important; }
+.pilot-ai-table td, .pilot-ai-table th { font-size:12px; padding:6px; vertical-align:top; text-align:left; }
+.pilot-ai-wait::before { content:''; display:inline-block; width:12px; height:12px; margin-right:8px; border:2px solid #214d3b; border-right-color:transparent; border-radius:50%; animation:pilotspin 1s linear infinite; vertical-align:-1px; }
+@keyframes pilotspin { to { transform:rotate(360deg); } }

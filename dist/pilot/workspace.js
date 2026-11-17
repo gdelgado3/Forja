@@ -27,7 +27,7 @@ function renderPilotWorkspace() {
     ${isDetail?'<button data-action="nav" data-view="projects">Orçamentos anteriores</button>':''}
     <button data-action="export">Exportar cópia</button><button data-pilot-action="logout">Sair</button></div></header>
     <main class="pilot-content"><div class="pilot-sync no-print" id="pilot-save-status" role="status">${esc(window.forjaPilot.status())}</div>
-    ${pilotQuickHtml()}<section id="pilot-responses" class="no-print"></section>${isDetail?detail(project()):projectsHtml()}${isDetail?pilotPriceCheck(project()):''}${pilotFeedbackHtml()}</main></div>`;
+    ${pilotQuickHtml()}<section id="pilot-responses" class="no-print"></section>${isDetail&&['pedido','orcamento'].includes(tab)?pilotAiHtml(project()):''}${isDetail?detail(project()):projectsHtml()}${isDetail?pilotPriceCheck(project()):''}${pilotFeedbackHtml()}</main></div>`;
   renderPilotResponses();
 }
 function renderPilotResponses() {
@@ -110,6 +110,99 @@ function pilotPriceCheck(p) {
 }
 let pilotFeedback={rating:null,text:'',sent:false};
 let pilotQuick={rating:null,closed:false};
+// ---------- Leitura com IA ----------
+const pilotAi={pid:null,loading:false,error:'',data:null,off:new Set(),applied:{}};
+async function pilotAiLoad(p) {
+  if(pilotAi.pid===p.id && (pilotAi.data || pilotAi.loading))return;
+  Object.assign(pilotAi,{pid:p.id,loading:false,error:'',data:null,off:new Set()});
+  try {pilotAi.data=await window.forjaPilot.ai.get(p.id);} catch(e) {pilotAi.error=e.message;}
+  if(pilotAi.pid===p.id && view==='detail')render();
+}
+function pilotAiHtml(p) {
+  if(!p)return '';
+  if(pilotAi.pid!==p.id){pilotAiLoad(p);return '';}
+  const d=pilotAi.data;
+  if(!d && !pilotAi.error)return '';
+  if(d && !d.enabled)return '';
+  const left=d?`<small class="muted">${d.remaining} leitura(s) disponível(eis)${d.demo?' na demonstração':' hoje'}</small>`:'';
+  const err=pilotAi.error?`<p class="pilot-message" role="alert">${esc(pilotAi.error)}</p>`:'';
+  const turns=d?.turns||[];
+  if(pilotAi.loading)return `<section class="card card-pad pilot-ai no-print"><div class="card-title"><h2>Leitura com IA</h2>${left}</div><p class="pilot-ai-wait" role="status">A ler o pedido e os anexos… pode demorar até um minuto.</p></section>`;
+  if(!turns.length)return `<section class="card card-pad pilot-ai no-print"><div class="card-title"><h2>Leitura com IA</h2>${left}</div>
+    <p>A Forja lê o pedido e os anexos e propõe as peças, as linhas do orçamento com as contas e o que falta perguntar ao cliente. Não inventa preços: os custos vêm do teu catálogo. Revês tudo antes de aplicar.</p>
+    <p class="smalltext muted">Telefones, emails, NIF e moradas do texto não são enviados. Nas fotos e PDFs, só as zonas que marcaste ficam tapadas.</p>${err}
+    <button type="button" class="primary" data-ai-run ${d?.remaining?'':'disabled'}>Ler o pedido com IA</button></section>`;
+  const r=turns.at(-1).reading;
+  const badge=st=>`<span class="pilot-ai-state pilot-ai-${st==='dito'?'said':st==='deduzido'?'deduced':'check'}">${esc(st)}</span>`;
+  const lines=r.lines.map((l,i)=>`<li><label><input type="checkbox" data-ai-line="${i}" ${pilotAi.off.has(i)?'':'checked'}>
+    <span><strong>${esc(l.desc)}</strong> · ${String(l.qty).replace('.',',')} ${esc(l.unit)} ${badge(l.state)}<small>${esc(l.basis)}</small></span></label></li>`).join('');
+  const list=(title,items)=>items.length?`<h3>${title}</h3><ul>${items.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'';
+  const pieces=r.pieces.length?`<details><summary>Peças (${r.pieces.length})</summary><div class="table-scroll"><table class="pilot-ai-table"><thead><tr><th>Peça</th><th>Medidas</th><th>Material</th><th>Qtd.</th><th>Fixação</th><th>Origem</th></tr></thead><tbody>
+    ${r.pieces.map(x=>`<tr><td>${esc(x.piece)} ${badge(x.state)}</td><td>${esc(x.measures)}</td><td>${esc(x.material)}</td><td>${esc(x.qty)}</td><td>${esc(x.fixing)}</td><td><small>${esc(x.origin)}</small></td></tr>`).join('')}</tbody></table></div></details>`:'';
+  const history=turns.slice(1).map(t=>`<li><small>${new Date(t.at).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</small> ${esc(t.ask)}</li>`).join('');
+  return `<section class="card card-pad pilot-ai no-print"><div class="card-title"><h2>Leitura com IA</h2>${left}</div>
+    ${r.reply?`<p class="pilot-ai-reply">${esc(r.reply)}</p>`:''}
+    <p>${esc(r.summary)}</p>${pieces}
+    ${r.lines.length?`<h3>Linhas propostas</h3><p class="smalltext muted">Escolhe as que entram no orçamento. O custo vem do catálogo; sem artigo correspondente fica por indicar.</p><ul class="pilot-ai-lines">${lines}</ul>`:''}
+    ${r.missing.length?`<h3>Falta saber</h3><ul>${r.missing.map(q=>`<li>${esc(q.question)} <small class="muted">${esc(q.why)}</small></li>`).join('')}</ul>`:''}
+    ${list('Fora do âmbito / a confirmar',[...r.scope.excluded.map(x=>'Excluído: '+x),...r.scope.purchase.map(x=>'Compra: '+x),...r.scope.otherTrade.map(x=>'Outro ofício: '+x)])}
+    ${r.calcs.length?`<details><summary>Contas (${r.calcs.length})</summary><ul>${r.calcs.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></details>`:''}
+    ${list('Avisos',r.warnings)}${err}
+    <div class="pilot-ai-actions">${pilotAi.applied[p.id]===turns.at(-1).at?'<span class="smalltext muted">Esta leitura já foi aplicada. Se corrigires, a nova leitura pode ser aplicada outra vez (as linhas antigas ficam; apaga as que sobrarem).</span>':`<button type="button" class="primary" data-ai-apply ${r.lines.length||r.missing.length?'':'disabled'}>Aplicar ao orçamento e à memória</button>`}</div>
+    <div class="pilot-ai-ask"><label for="ai-ask">Corrigir ou perguntar</label>
+      <textarea class="field" id="ai-ask" rows="2" maxlength="2000" placeholder="Ex.: são 2 portões iguais; a chapa é de 3 mm; não leva motor."></textarea>
+      <div class="pilot-ai-actions"><button type="button" data-ai-ask ${d.remaining?'':'disabled'}>Enviar</button><button type="button" class="small ghost" data-ai-restart ${d.remaining?'':'disabled'}>Recomeçar a leitura</button></div>
+      ${history?`<ul class="pilot-ai-history">${history}</ul>`:''}</div></section>`;
+}
+function pilotAiApply(p) {
+  const r=pilotAi.data.turns.at(-1).reading,t=now();
+  const catalog=state.settings.catalog||[];
+  let added=0,priced=0;
+  r.lines.forEach((x,i)=>{
+    if(pilotAi.off.has(i))return;
+    const line={id:uid(),desc:x.desc,qty:Math.round(x.qty*1000)/1000,unit:x.unit,price:0,source:`Leitura IA (${x.state}) · ${x.basis}`.slice(0,400)};
+    pilotAutoPrice(line,{keepSource:true});
+    const row=line.match?.applied?catalog.find(c=>c.label===line.match.label):null;
+    if(row && row.unit!==line.unit){line.price=0;line.match={...line.match,applied:false};}
+    if(line.match?.applied)priced++;
+    p.lines.push(line);added++;
+  });
+  for(const q of r.missing)p.memory.unshift({id:uid(),kind:'Pendente',text:q.question+(q.why?' ('+q.why+')':''),source:'Leitura IA · por confirmar',created:t});
+  for(const x of [...r.scope.excluded.map(v=>'Excluído do orçamento: '+v),...r.scope.purchase.map(v=>'Compra (não fabricado): '+v),...r.scope.otherTrade.map(v=>'Outro ofício: '+v)])
+    p.memory.unshift({id:uid(),kind:'Hipótese',text:x,source:'Leitura IA · âmbito',created:t});
+  pilotAi.applied[p.id]=pilotAi.data.turns.at(-1).at;
+  dirty(p);event(p,`Leitura IA aplicada: ${added} linha(s), ${r.missing.length} pergunta(s) em falta.`,'Leitura IA · revista pela oficina');
+  persist();tab='orcamento';render();
+  toast(`${added} linha(s) no orçamento, ${priced} com custo do catálogo. Revê as quantidades e os custos.`);
+}
+async function pilotAiRun(p,body) {
+  pilotAi.loading=true;pilotAi.error='';render();
+  try {
+    if(!await window.forjaPilot.flush())throw new Error('Guarda o pedido antes de pedir a leitura.');
+    const out=await window.forjaPilot.ai.run(p.id,body);
+    pilotAi.data={...pilotAi.data,remaining:out.remaining,turns:out.turns};pilotAi.off=new Set();
+  } catch(e) {pilotAi.error=e.message;}
+  pilotAi.loading=false;
+  if(pilotAi.pid===p.id && view==='detail')render();
+}
+document.addEventListener('change',ev=>{
+  const box=ev.target.closest?.('[data-ai-line]');
+  if(!box)return;
+  const i=Number(box.dataset.aiLine);
+  if(box.checked)pilotAi.off.delete(i);else pilotAi.off.add(i);
+});
+document.addEventListener('click',ev=>{
+  const t=ev.target.closest('[data-ai-run],[data-ai-apply],[data-ai-ask],[data-ai-restart]');
+  if(!t || view!=='detail')return;
+  const p=project();
+  if(t.hasAttribute('data-ai-run'))pilotAiRun(p,{});
+  else if(t.hasAttribute('data-ai-restart'))pilotAiRun(p,{restart:true});
+  else if(t.hasAttribute('data-ai-ask')) {
+    const ask=document.querySelector('#ai-ask').value.trim();
+    if(!ask){toast('Escreve a correção ou a pergunta.');return;}
+    pilotAiRun(p,{message:ask});
+  } else pilotAiApply(p);
+});
 window.forjaRender=()=>render();
 function pilotQuickHtml() {
   if(!window.forjaPilot.demo || !state.projects.some(p=>p.id==='exemplo') || pilotQuick.closed || pilotFeedback.sent)return '';

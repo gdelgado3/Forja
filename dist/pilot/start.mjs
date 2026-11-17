@@ -304,6 +304,7 @@ async function workshop() {
     },
     formLink:initial.formToken?location.origin+'/pedido/'+initial.formToken:'',
     markImported:id=>post('/requests/'+encodeURIComponent(id)+'/imported',{}),
+    ai:{get:id=>api('/ai/'+encodeURIComponent(id)),run:(id,body)=>post('/ai/'+encodeURIComponent(id),body)},
     async getFile(id) {return (await request('/files/'+encodeURIComponent(id))).blob();},
     responses:[],
     sendFeedback:data=>post('/feedback',data),
