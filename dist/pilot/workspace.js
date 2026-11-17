@@ -145,9 +145,11 @@ function pilotAiPoll(pid) {
       }
       pilotAi.data={...pilotAi.data,...d};
     } catch { /* rede: tenta outra vez */ }
+    const pr=document.querySelector('#pilot-ai-progress');
+    if(pr && pilotAi.data?.progress && pr.textContent!==pilotAi.data.progress){pr.textContent=pilotAi.data.progress;pr.classList.remove('pilot-ai-fresh');void pr.offsetWidth;pr.classList.add('pilot-ai-fresh');}
     const el=document.querySelector('#pilot-ai-elapsed');
     if(el && pilotAi.data?.started){const s=Math.max(0,Math.round((Date.now()-new Date(pilotAi.data.started))/1000));el.textContent=`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;}
-    pilotAiTimer=setTimeout(tick,4000);
+    pilotAiTimer=setTimeout(tick,2500);
   };
   pilotAiTimer=setTimeout(tick,1500);
 }
@@ -160,7 +162,7 @@ function pilotAiHtml(p) {
   const left=d?`<small class="muted">${d.remaining} orçamento(s) disponível(eis)${d.demo?' na demonstração':' hoje'}</small>`:'';
   const err=pilotAi.error?`<p class="pilot-message" role="alert">${esc(pilotAi.error)}</p>`:'';
   const turns=d?.turns||[];
-  if(pilotAi.loading)return `<section class="card card-pad pilot-ai no-print" id="pilot-ai"><div class="card-title"><h2>Obter orçamento</h2>${left}</div><p class="pilot-ai-wait" role="status">A analisar o pedido e todos os anexos… <strong id="pilot-ai-elapsed">0:00</strong></p><p class="smalltext muted">Uma análise completa pode levar até 10 minutos. Podes continuar a trabalhar noutros pedidos: o resultado aparece aqui.</p></section>`;
+  if(pilotAi.loading)return `<section class="card card-pad pilot-ai no-print" id="pilot-ai"><div class="card-title"><h2>Obter orçamento</h2>${left}</div><p class="pilot-ai-wait">A analisar o pedido e todos os anexos… <strong id="pilot-ai-elapsed">0:00</strong></p><p class="pilot-ai-progress" id="pilot-ai-progress" aria-live="polite">${esc(pilotAi.data?.progress||'A preparar o pedido…')}</p><p class="smalltext muted">Uma análise completa pode levar até 10 minutos. Podes continuar a trabalhar noutros pedidos: o resultado aparece aqui.</p></section>`;
   if(!turns.length)return `<section class="card card-pad pilot-ai pilot-ai-cta no-print" id="pilot-ai"><div class="card-title"><h2>Obter orçamento</h2>${left}</div>
     <p>Quando o pedido e os anexos estiverem completos, carrega no botão. A Forja analisa tudo e propõe as peças, as linhas do orçamento com as contas e o que falta perguntar ao cliente. Os custos vêm do teu catálogo e podes alterá-los. Revês tudo antes de aplicar.</p>
     <p class="smalltext muted">Telefones, emails, NIF e moradas do texto não são enviados. Nas fotos e PDFs, só as zonas que marcaste ficam tapadas.</p>${err}

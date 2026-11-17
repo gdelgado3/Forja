@@ -187,3 +187,7 @@
 .pilot-ai-qtext small { display:block; font-size:12px; }
 .pilot-ai-questions .field { padding:8px 10px; }
 @media(max-width:620px){ .pilot-ai-questions li { grid-template-columns:1fr; } }
+.pilot-ai-progress { margin:6px 0 4px; padding:10px 12px; border-left:3px solid #214d3b; background:#f2f6f2; border-radius:0 8px 8px 0; font-style:italic; color:#2c3a31; min-height:1.4em; }
+.pilot-ai-fresh { animation:pilotfade .6s ease; }
+@keyframes pilotfade { from { opacity:.2; transform:translateY(3px); } to { opacity:1; transform:none; } }
+@media (prefers-reduced-motion: reduce) { .pilot-ai-fresh { animation:none; } }

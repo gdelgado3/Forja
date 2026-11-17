@@ -514,7 +514,7 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
       if(ai && req.method==='GET') {
         const office=workshopLookup.get(auth.workshop),job=aiJobs.get(office.id+'/'+ai[1]);
         return reply(res,{enabled:!!aiKey,remaining:aiRemaining(office),demo:!!office.demo,turns:aiPublic(aiThread(office.id,ai[1])),
-          pending:job?.status==='running',started:job?.started||null,error:job?.status==='error'?job.error:''});
+          pending:job?.status==='running',started:job?.started||null,progress:job?.status==='running'?job.progress||'':'',error:job?.status==='error'?job.error:''});
       }
       if(ai && req.method==='POST') {
         requireValue(aiKey,'A leitura de pedidos ainda não está ligada neste servidor.',503);
@@ -540,11 +540,12 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
             {type:'text',text:'Mensagem da oficina: '+(turns[i+1]?.ask ?? ask)}]});
         });
         const started=time();
-        aiJobs.set(key,{status:'running',started});
+        const job={status:'running',started,progress:'A preparar o pedido…'};
+        aiJobs.set(key,job);
         // Corre em segundo plano (até 10 minutos); a página vai perguntando pelo resultado.
         (async()=>{
           try {
-            const result=await callClaude(messages,{apiKey:aiKey,model:aiModel,fetchImpl:aiFetch,thinking:!turns.some(t=>!t.content)});
+            const result=await callClaude(messages,{apiKey:aiKey,model:aiModel,fetchImpl:aiFetch,thinking:!turns.some(t=>!t.content),onProgress:text=>{job.progress=String(text).slice(0,200);}});
             db.prepare('INSERT INTO ai_calls VALUES(?,?,?,?,1)').run(office.id,time(),result.usage.input_tokens||0,result.usage.output_tokens||0);
             const {id,name,input:toolInput}=result.toolUse;
             const next=[...turns,{ask:turns.length?ask:'',at:time(),reading:result.reading,toolUse:{type:'tool_use',id,name,input:toolInput},content:result.content}];

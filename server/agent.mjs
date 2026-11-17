@@ -9,7 +9,7 @@ const MAX_TOTAL = 18 * 1024 * 1024;
 const MAX_IMAGE = 5 * 1024 * 1024;
 const MAX_PDF = 20 * 1024 * 1024;
 
-export const SYSTEM = `És o leitor de pedidos de orçamento da Forja, para oficinas de serralharia em Portugal. Respondes sempre em português de Portugal.
+export const SYSTEM = `És o leitor de pedidos de orçamento da Forja, para oficinas de serralharia em Portugal. Respondes e pensas sempre em português de Portugal.
 Objetivo: tirar do pedido tudo o que o orçamentista precisa, sem inventar, e dizer claramente o que falta.
 Faz a análise mais completa possível: lê todas as páginas e todos os anexos, cruza o texto com os desenhos e as medidas, confere as contas duas vezes e não deixes nenhuma peça, ferragem, acabamento ou trabalho de montagem de fora. Tens tempo; prefere ser completo a ser rápido.
 
@@ -158,14 +158,39 @@ const LIMIT_MS = 10 * 60 * 1000;
 let thinkingOff = false;
 
 // Lê a resposta em streaming (necessário para análises longas) e devolve-a no formato normal da API.
-async function readStream(response) {
+// Frases curtas do que está a acontecer, para a oficina ver o progresso.
+function progressFrom(blocks, report) {
+  if (!report) return;
+  const tool = blocks.find(b => b?.type === 'tool_use');
+  if (tool) {
+    const j = tool._json || '';
+    const lines = (j.match(/"descricao"/g) || []).length;
+    const phase = j.includes('"avisos"') ? 'A rever os avisos e terminar…'
+      : j.includes('"ambito"') ? 'A separar o que é da serralharia, o que é compra e o que é de outro ofício…'
+      : j.includes('"falta_saber"') ? 'A listar o que falta perguntar ao cliente…'
+      : j.includes('"contas"') ? 'A conferir as contas…'
+      : j.includes('"linhas"') ? `A escrever as linhas do orçamento (${lines})…`
+      : j.includes('"pecas"') ? 'A identificar as peças do pedido…'
+      : 'A preparar a proposta…';
+    return report(phase);
+  }
+  const think = blocks.find(b => b?.type === 'thinking')?.thinking || '';
+  if (!think) return;
+  // Última frase completa do raciocínio, limpa e curta.
+  const sentences = think.replace(/[*#`_>]/g, '').split(/(?<=[.!?…])\s+|\n+/).map(x => x.trim()).filter(x => x.length > 12);
+  const last = sentences.length > 1 ? sentences.at(-2) : sentences[0];
+  if (last) report(last.length > 180 ? last.slice(0, 177) + '…' : last);
+}
+
+async function readStream(response, report) {
   const data = { content: [], stop_reason: null, usage: {} };
   const blocks = [];
   const decoder = new TextDecoder();
   let buffer = '';
+  let lastReport = 0;
   const handle = event => {
     if (event.type === 'message_start') Object.assign(data.usage, event.message?.usage || {});
-    else if (event.type === 'content_block_start') blocks[event.index] = { ...event.content_block, _json: '' };
+    else if (event.type === 'content_block_start') { blocks[event.index] = { ...event.content_block, _json: '' }; if (report && event.content_block?.type === 'thinking') report('A ler o pedido e os anexos…'); }
     else if (event.type === 'content_block_delta') {
       const b = blocks[event.index], d = event.delta || {};
       if (!b) return;
@@ -173,6 +198,7 @@ async function readStream(response) {
       else if (d.type === 'input_json_delta') b._json += d.partial_json || '';
       else if (d.type === 'thinking_delta') b.thinking = (b.thinking || '') + d.thinking;
       else if (d.type === 'signature_delta') b.signature = d.signature;
+      if (report && Date.now() - lastReport > 1500) { lastReport = Date.now(); progressFrom(blocks, report); }
     } else if (event.type === 'message_delta') { data.stop_reason = event.delta?.stop_reason || data.stop_reason; Object.assign(data.usage, event.usage || {}); }
     else if (event.type === 'error') throw Object.assign(Error(event.error?.message || 'erro no streaming'), { streamError: event.error });
   };
@@ -189,7 +215,7 @@ async function readStream(response) {
   return data;
 }
 
-async function post(body, apiKey, fetchImpl, signal) {
+async function post(body, apiKey, fetchImpl, signal, report) {
   const response = await fetchImpl('https://api.anthropic.com/v1/messages', {
     method: 'POST', signal,
     headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
@@ -197,7 +223,7 @@ async function post(body, apiKey, fetchImpl, signal) {
   });
   if (!response.ok || !(response.headers.get('content-type') || '').includes('event-stream'))
     return { response, data: await response.json().catch(() => ({})) };
-  try { return { response, data: await readStream(response) }; }
+  try { return { response, data: await readStream(response, report) }; }
   catch (e) {
     if (e.name === 'TimeoutError' || e.name === 'AbortError') throw e;
     return { response: { ok: false, status: e.streamError?.type === 'overloaded_error' ? 529 : 500 }, data: { error: e.streamError || { message: e.message } } };
@@ -206,7 +232,7 @@ async function post(body, apiKey, fetchImpl, signal) {
 
 const fail = (message, status, detail) => Object.assign(Error(message), { status, detail });
 
-export async function callClaude(messages, { apiKey, model = MODEL, fetchImpl = fetch, thinking = true } = {}) {
+export async function callClaude(messages, { apiKey, model = MODEL, fetchImpl = fetch, thinking = true, onProgress } = {}) {
   if (!apiKey) throw fail('A leitura de pedidos ainda não está ligada neste servidor.', 503);
   const signal = AbortSignal.timeout(LIMIT_MS);
   const useThinking = thinking && !thinkingOff;
@@ -214,20 +240,21 @@ export async function callClaude(messages, { apiKey, model = MODEL, fetchImpl = 
     // Raciocínio adaptativo com esforço alto: a análise mais completa que o modelo faz.
     ...(useThinking ? { thinking: { type: 'adaptive' }, output_config: { effort: 'high' } } : {}) };
   let response, data;
+  onProgress?.('A enviar o pedido para análise…');
   try {
-    ({ response, data } = await post(body, apiKey, fetchImpl, signal));
+    ({ response, data } = await post(body, apiKey, fetchImpl, signal, onProgress));
     if (!response.ok && body.thinking && /thinking|budget|effort|output_config/i.test(data?.error?.message || '')) {
       // Este modelo não aceita o raciocínio alargado assim: segue sem ele.
       console.error('Sem raciocínio alargado:', String(data?.error?.message || '').slice(0, 200));
       thinkingOff = true; delete body.thinking; delete body.output_config; body.max_tokens = 32000;
-      ({ response, data } = await post(body, apiKey, fetchImpl, signal));
+      ({ response, data } = await post(body, apiKey, fetchImpl, signal, onProgress));
     }
     const isModelError = () => !response.ok && (response.status === 404 || data?.error?.type === 'not_found_error' || /model[^.]*(not found|does not exist|not available|invalid)/i.test(data?.error?.message || ''));
     if (isModelError()) {
       console.error('Modelo recusado:', body.model, '-', String(data?.error?.message || '').slice(0, 300));
       try {
         const pick = pickModel(await listModels({ apiKey, fetchImpl }), model);
-        if (pick && pick !== body.model) { resolvedModel = pick; body.model = pick; ({ response, data } = await post(body, apiKey, fetchImpl, signal)); }
+        if (pick && pick !== body.model) { resolvedModel = pick; body.model = pick; ({ response, data } = await post(body, apiKey, fetchImpl, signal, onProgress)); }
       } catch (e) { console.error('Não foi possível listar modelos:', e.message); }
     }
     if (!response.ok) {
@@ -243,10 +270,11 @@ export async function callClaude(messages, { apiKey, model = MODEL, fetchImpl = 
     let call = (data.content || []).find(b => b.type === 'tool_use' && b.name === TOOL.name);
     if (!call && data.stop_reason !== 'max_tokens') {
       // Respondeu em texto: pede outra vez, agora pela ferramenta.
+      onProgress?.('A organizar a proposta…');
       const said = (data.content || []).filter(b => ['thinking', 'redacted_thinking', 'text'].includes(b.type) && (b.type !== 'text' || b.text?.trim()));
       const again = await post({ ...body, model: resolvedModel || body.model, messages: [...messages,
         { role: 'assistant', content: said.length ? said : [{ type: 'text', text: '(sem resposta)' }] },
-        { role: 'user', content: 'Regista agora a leitura usando só a ferramenta registar_leitura.' }] }, apiKey, fetchImpl, signal);
+        { role: 'user', content: 'Regista agora a leitura usando só a ferramenta registar_leitura.' }] }, apiKey, fetchImpl, signal, onProgress);
       if (again.response.ok) { data = again.data; call = (data.content || []).find(b => b.type === 'tool_use' && b.name === TOOL.name); }
     }
     if (!call) throw fail(data.stop_reason === 'max_tokens' ? 'O pedido é grande demais para uma só análise. Divide-o em partes.' : 'Não foi possível analisar este pedido. Tenta de novo.', 502);
