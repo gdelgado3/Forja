@@ -436,16 +436,33 @@ document.addEventListener('click',async ev=>{
   if(!target)return;
   if(target.hasAttribute('data-pilot-feedback-go')) {document.querySelector('.pilot-feedback')?.scrollIntoView({behavior:'smooth'});document.querySelector('#pilot-feedback-text')?.focus({preventScroll:true});return;}
   if(target.hasAttribute('data-pilot-catalog')) {
-    const rows=(state.settings.catalog||[]).map(x=>`${x.label};${x.unit};${String(x.price).replace('.',',')}`).join('\n');
-    modal(`${modalHead('Catálogo da empresa','Um artigo por linha: nome; unidade; custo. A Forja usa estes custos para preencher o orçamento e diz a confiança de cada correspondência.')}
+    const rows=(state.settings.catalog||[]).map(x=>[x.label,x.unit,String(x.price).replace('.',','),x.date?x.date.split('-').reverse().join('/'):'',x.supplier||''].join(';').replace(/;+$/,'')).join('\n');
+    modal(`${modalHead('Catálogo da empresa','Um artigo por linha: nome; unidade; custo; data da cotação; fornecedor (os dois últimos são opcionais). A Forja usa estes custos no orçamento, diz a confiança de cada correspondência e avisa quando a cotação está velha.')}
       <div class="pilot-drawing">
       <label>Artigos<textarea class="field pilot-catalog-text" id="pc-text" rows="12" placeholder="Chapa inox 2 mm;m²;78&#10;Tubo aço 40×40×2;m;4,50&#10;Montagem em obra;h;35">${esc(rows)}</textarea></label>
-      <label>Ou importar um ficheiro CSV<input class="field" id="pc-file" type="file" accept=".csv,.txt,text/csv,text/plain"></label>
+      <label>Ou importar a tabela de preços dos fornecedores (Excel .xlsx ou CSV)<input class="field" id="pc-file" type="file" accept=".xlsx,.csv,.txt,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></label>
       <label>Ou ler orçamentos antigos (PDF com texto ou .txt)<input class="field" id="pc-quotes" type="file" multiple accept=".pdf,.txt,application/pdf,text/plain"></label>
-      <p class="smalltext muted">Unidades: un, m, m², m³, kg ou h. Separa com ponto e vírgula ou tabulação. Até 500 artigos.</p>
+      <p class="smalltext muted">Unidades: un, m, m², m³, kg ou h. Preços por barra são convertidos para metro quando o nome diz o comprimento. Separa com ponto e vírgula ou tabulação. Até 2000 artigos.</p>
       <p id="pc-status" class="pilot-message" role="alert" hidden></p>
       <div class="pilot-start"><button type="button" class="primary" data-pilot-catalog-save>Guardar catálogo</button><button type="button" data-action="close">Cancelar</button></div></div>`);
-    document.querySelector('#pc-file').addEventListener('change',async e=>{const f=e.target.files[0];if(f)document.querySelector('#pc-text').value=(await f.text()).slice(0,200000);});
+    document.querySelector('#pc-file').addEventListener('change',async e=>{
+      const f=e.target.files[0];if(!f)return;
+      const status=document.querySelector('#pc-status'),say=t=>{status.hidden=!t;status.textContent=t;};
+      if(!/\.xlsx$/i.test(f.name)){document.querySelector('#pc-text').value=(await f.text()).slice(0,400000);return;}
+      say('A ler o Excel…');
+      try {
+        const X=await import('/pilot/xlsx.mjs');
+        const fileDate=new Date(f.lastModified||Date.now()).toISOString().slice(0,10);
+        const {items,notes}=X.supplierCatalog(await X.readXlsx(f),fileDate);
+        if(!items.length)return say('Não encontrei artigos com preço neste Excel. Confirma que tem uma coluna com o nome e outra com o preço.');
+        const box=document.querySelector('#pc-text');
+        const fold=t=>t.normalize('NFD').replace(/\p{M}/gu,'').toLowerCase().trim();
+        const have=new Map(box.value.split(/\r?\n/).filter(Boolean).map(l=>[fold(l.split(/\t|;/)[0]||''),l]));
+        for(const x of items)have.set(fold(x.label),[x.label,x.unit,String(x.price).replace('.',','),x.date?x.date.split('-').reverse().join('/'):'',x.supplier].join(';').replace(/;+$/,''));
+        box.value=[...have.values()].join('\n');
+        say(`${items.length} artigo(s) lidos do Excel. ${notes.join(' ')} Os que não tinham data ficaram com a data do ficheiro (${fileDate.split('-').reverse().join('/')}). Revê e carrega em Guardar.`);
+      } catch(err) {say('Não foi possível ler este Excel: '+err.message);}
+    });
     document.querySelector('#pc-quotes').addEventListener('change',e=>pilotImportQuotes([...e.target.files]));
     return;
   }
@@ -589,7 +606,16 @@ function pilotConfidence(l) {
   if(m.manual)return `<span class="pilot-conf pilot-conf-manual" title="Custo alterado à mão${m.label?' · catálogo: '+esc(m.label):''}">Manual</span>`;
   if(!m.applied)return `<span class="pilot-conf pilot-conf-low" title="${m.label?'Melhor artigo: '+esc(m.label):'Catálogo vazio'}"><span class="pilot-bar" aria-hidden="true"><span style="width:${m.score||0}%"></span></span>Sem corresp.${m.label?' · '+m.score+'%':''}</span>`;
   const level=m.score>=85?'high':'mid';
-  return `<span class="pilot-conf pilot-conf-${level}" title="Artigo do catálogo: ${esc(m.label)}"><span class="pilot-bar" aria-hidden="true"><span style="width:${m.score}%"></span></span>${level==='high'?'Alta':'Média'} · ${m.score}%</span>`;
+  return `<span class="pilot-conf pilot-conf-${level}" title="Artigo do catálogo: ${esc(m.label)}"><span class="pilot-bar" aria-hidden="true"><span style="width:${m.score}%"></span></span>${level==='high'?'Alta':'Média'} · ${m.score}%</span>${pilotAgeChip(m.label)}`;
+}
+// Aviso de cotação velha: o preço do fornecedor tem data e envelhece.
+const PILOT_STALE_DAYS=30;
+function pilotAgeChip(label) {
+  const row=(state.settings.catalog||[]).find(c=>c.label===label);
+  if(!row?.date)return '';
+  const days=Math.floor((Date.now()-new Date(row.date+'T12:00:00'))/86400000);
+  if(days<PILOT_STALE_DAYS)return '';
+  return `<span class="pilot-stale" title="Cotação de ${row.date.split('-').reverse().join('/')}${row.supplier?' · '+esc(row.supplier):''}">Cotação com ${days} dias: confirma</span>`;
 }
 function pilotAfterEdit(p,l,k) {
   if(k==='price'||k==='unit'){if(l.match)l.match.manual=true;return false;}
@@ -627,7 +653,7 @@ async function pilotImportQuotes(files) {
 function pilotParseCatalog(text) {
   const units={'un':'un','un.':'un','uni':'un','unid':'un','unid.':'un','unidade':'un','unidades':'un','m':'m','ml':'m','m2':'m²','m²':'m²','m3':'m³','m³':'m³','kg':'kg','h':'h','hr':'h','hora':'h','horas':'h'};
   const rows=String(text).split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
-  if(rows.length>500)throw new Error('O catálogo pode ter até 500 artigos.');
+  if(rows.length>2000)throw new Error('O catálogo pode ter até 2000 artigos.');
   return rows.filter((line,i)=>!(i===0 && /artigo|descri/i.test(line) && !/\d/.test(line))).map((line,i)=>{
     const cols=line.split(/\t|;/).map(c=>c.trim());
     if(cols.length<3)throw new Error(`Linha ${i+1}: escreve nome; unidade; custo.`);
@@ -636,6 +662,13 @@ function pilotParseCatalog(text) {
     const price=Number(cols[2].replace(/[€\s]/g,'').replace(/\.(?=\d{3}(\D|$))/g,'').replace(',','.'));
     if(!Number.isFinite(price)||price<0)throw new Error(`Linha ${i+1}: o custo «${cols[2]}» não é um número.`);
     if(!cols[0]||cols[0].length>180)throw new Error(`Linha ${i+1}: falta o nome do artigo.`);
-    return {label:cols[0],unit,price};
+    const item={label:cols[0],unit,price};
+    if(cols[3]){
+      const d=cols[3].match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})$/),iso=cols[3].match(/^\d{4}-\d{2}-\d{2}$/);
+      if(iso)item.date=cols[3];else if(d)item.date=`${d[3].length===2?'20'+d[3]:d[3]}-${d[2].padStart(2,'0')}-${d[1].padStart(2,'0')}`;
+      else throw new Error(`Linha ${i+1}: a data «${cols[3]}» não está no formato dd/mm/aaaa.`);
+    }
+    if(cols[4])item.supplier=cols[4].slice(0,80);
+    return item;
   });
 }

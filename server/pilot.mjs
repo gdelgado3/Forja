@@ -81,11 +81,14 @@ async function passwordMatches(password, record) {
 function priceSettings(name, input) {
   requireValue(input && typeof input==='object', 'Indica os preços e as taxas da oficina.');
   const catalog = input.catalog ?? [];
-  requireValue(Array.isArray(catalog) && catalog.length <= 500, 'A tabela pode ter até 500 artigos.');
+  requireValue(Array.isArray(catalog) && catalog.length <= 2000, 'A tabela pode ter até 2000 artigos.');
   return {company:name, hour:amount(input.hour,100000), markup:amount(input.markup,1000), vat:amount(input.vat,100),
     catalog:catalog.map(row => {
       requireValue(units.has(row?.unit), 'Unidade inválida na tabela de preços.');
-      return {label:text(row.label,180),unit:row.unit,price:amount(row.price,1000000)};
+      const item={label:text(row.label,180),unit:row.unit,price:amount(row.price,1000000)};
+      if(typeof row.date==='string' && /^\d{4}-\d{2}-\d{2}$/.test(row.date) && !Number.isNaN(Date.parse(row.date)))item.date=row.date;
+      if(typeof row.supplier==='string' && row.supplier.trim())item.supplier=row.supplier.trim().slice(0,80);
+      return item;
     })};
 }
 function validateWorkspace(state) {
