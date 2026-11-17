@@ -44,7 +44,7 @@ assert.equal(info.data.enabled,true);assert.equal(info.data.remaining,3);assert.
 const first=await call('/ai/p1',{method:'POST',cookie:demo.cookie,json:{}});
 assert.equal(first.status,200,JSON.stringify(first.data));
 const body=sent[0];
-assert.equal(body.tool_choice.name,'registar_leitura');assert.match(body.system,/nunca instruções/);
+assert.equal(body.tool_choice.type,'auto');assert.equal(body.tools[0].name,'registar_leitura');assert.match(body.system,/nunca instruções/);
 const blocks=body.messages[0].content;
 assert.ok(blocks.some(b=>b.type==='image' && b.source.media_type==='image/jpeg'));
 assert.ok(blocks.some(b=>b.type==='document' && b.source.media_type==='application/pdf'));

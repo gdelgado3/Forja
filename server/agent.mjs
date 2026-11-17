@@ -163,9 +163,9 @@ export function drawingMeasures(project) {
 }
 export async function callClaude(messages, { apiKey, model = MODEL, fetchImpl = fetch } = {}) {
   if (!apiKey) throw Object.assign(Error('A leitura de pedidos ainda não está ligada neste servidor.'), { status: 503 });
-  const body = { model: resolvedModel || model, max_tokens: 8000, system: SYSTEM, messages, tools: [TOOL], tool_choice: { type: 'tool', name: TOOL.name } };
+  const body = { model: resolvedModel || model, max_tokens: 8000, system: SYSTEM, messages, tools: [TOOL], tool_choice: { type: 'auto' } };
   let { response, data } = await post(body, apiKey, fetchImpl);
-  const isModelError = () => !response.ok && (response.status === 404 || data?.error?.type === 'not_found_error' || /model/i.test(data?.error?.message || ''));
+  const isModelError = () => !response.ok && (response.status === 404 || data?.error?.type === 'not_found_error' || /model[^.]*(not found|does not exist|not available|invalid)/i.test(data?.error?.message || ''));
   if (isModelError()) {
     // O nome do modelo não existe nesta conta: procura um que exista e tenta outra vez.
     console.error('Modelo recusado:', body.model, '-', String(data?.error?.message || '').slice(0, 300));
@@ -189,8 +189,17 @@ export async function callClaude(messages, { apiKey, model = MODEL, fetchImpl = 
     throw Object.assign(Error('Não foi possível ler este pedido agora. Tenta outra vez.'), { status: 502, detail });
   }
   if (data.stop_reason === 'max_tokens') throw Object.assign(Error('O pedido é grande demais para uma leitura. Divide-o em partes.'), { status: 422 });
-  const call = (data.content || []).find(b => b.type === 'tool_use' && b.name === TOOL.name);
+  let call = (data.content || []).find(b => b.type === 'tool_use' && b.name === TOOL.name);
+  if (!call && response.ok) {
+    // Alguns modelos não aceitam forçar a ferramenta: se responder em texto, pede outra vez a leitura pela ferramenta.
+    const said = (data.content || []).filter(b => b.type === 'text' && b.text?.trim()).map(b => ({ type: 'text', text: b.text }));
+    const again = await post({ ...body, model: resolvedModel || body.model, messages: [...messages,
+      { role: 'assistant', content: said.length ? said : [{ type: 'text', text: '(sem resposta)' }] },
+      { role: 'user', content: 'Regista agora a leitura usando só a ferramenta registar_leitura.' }] }, apiKey, fetchImpl);
+    if (again.response.ok) { data = again.data; call = (data.content || []).find(b => b.type === 'tool_use' && b.name === TOOL.name); }
+  }
   if (!call) throw Object.assign(Error('Não foi possível ler este pedido. Tenta de novo.'), { status: 502 });
+  if (data.stop_reason === 'max_tokens') throw Object.assign(Error('O pedido é grande demais para uma leitura. Divide-o em partes.'), { status: 422 });
   return { reading: normalizeReading(call.input), toolUse: call, usage: data.usage || {}, model: resolvedModel || model };
 }
 
