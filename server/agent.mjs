@@ -119,25 +119,69 @@ export function firstMessage(project, files, catalog) {
   return { message: { role: 'user', content }, skipped };
 }
 
-export async function callClaude(messages, { apiKey, model = MODEL, fetchImpl = fetch } = {}) {
-  if (!apiKey) throw Object.assign(Error('A leitura de pedidos ainda não está ligada neste servidor.'), { status: 503 });
+let resolvedModel = '';
+export async function listModels({ apiKey, fetchImpl = fetch }) {
+  const r = await fetchImpl('https://api.anthropic.com/v1/models?limit=100', {
+    headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' }, signal: AbortSignal.timeout(20000) });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(Error(data?.error?.message || 'HTTP ' + r.status), { status: r.status });
+  return (data.data || []).map(m => m.id).filter(Boolean);
+}
+// Escolhe o Sonnet mais recente que a conta tem (a lista vem do mais recente para o mais antigo).
+export function pickModel(ids, wanted) {
+  if (ids.includes(wanted)) return wanted;
+  return ids.find(id => /sonnet/i.test(id)) || ids.find(id => /opus/i.test(id)) || ids[0] || '';
+}
+
+async function post(body, apiKey, fetchImpl) {
   const response = await fetchImpl('https://api.anthropic.com/v1/messages', {
     method: 'POST', signal: AbortSignal.timeout(180000),
     headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model, max_tokens: 8000, system: SYSTEM, messages, tools: [TOOL], tool_choice: { type: 'tool', name: TOOL.name } }),
+    body: JSON.stringify(body),
   });
-  const data = await response.json().catch(() => ({}));
+  return { response, data: await response.json().catch(() => ({})) };
+}
+
+export async function callClaude(messages, { apiKey, model = MODEL, fetchImpl = fetch } = {}) {
+  if (!apiKey) throw Object.assign(Error('A leitura de pedidos ainda não está ligada neste servidor.'), { status: 503 });
+  const body = { model: resolvedModel || model, max_tokens: 8000, system: SYSTEM, messages, tools: [TOOL], tool_choice: { type: 'tool', name: TOOL.name } };
+  let { response, data } = await post(body, apiKey, fetchImpl);
+  const isModelError = () => !response.ok && (response.status === 404 || data?.error?.type === 'not_found_error' || /model/i.test(data?.error?.message || ''));
+  if (isModelError()) {
+    // O nome do modelo não existe nesta conta: procura um que exista e tenta outra vez.
+    console.error('Modelo recusado:', body.model, '-', String(data?.error?.message || '').slice(0, 300));
+    try {
+      const pick = pickModel(await listModels({ apiKey, fetchImpl }), model);
+      if (pick && pick !== body.model) {
+        console.error('A usar o modelo', pick);
+        resolvedModel = pick;
+        ({ response, data } = await post({ ...body, model: pick }, apiKey, fetchImpl));
+      }
+    } catch (e) { console.error('Não foi possível listar modelos:', e.message); }
+  }
   if (!response.ok) {
     const msg = data?.error?.message || '';
-    console.error('Erro na API Anthropic', response.status, data?.error?.type || '');
-    if (response.status === 401) throw Object.assign(Error('A leitura de pedidos não está bem configurada no servidor. Avisa a equipa da Forja.'), { status: 502 });
-    if (/credit balance/i.test(msg) || response.status === 402) throw Object.assign(Error('A leitura de pedidos está em pausa. Avisa a equipa da Forja.'), { status: 502 });
+    console.error('Erro na API Anthropic', response.status, data?.error?.type || '', '-', msg.slice(0, 300));
+    if (response.status === 401) throw Object.assign(Error('O serviço de leitura recusou o acesso. Tenta mais tarde.'), { status: 502 });
+    if (/credit balance/i.test(msg) || response.status === 402) throw Object.assign(Error('A leitura de pedidos está em pausa. Tenta mais tarde.'), { status: 502 });
     if (response.status === 429 || response.status === 529) throw Object.assign(Error('O serviço está ocupado. Tenta de novo dentro de um minuto.'), { status: 503 });
-    if (response.status === 400 && /model/i.test(msg)) throw Object.assign(Error('A leitura de pedidos não está bem configurada no servidor. Avisa a equipa da Forja.'), { status: 502 });
-    throw Object.assign(Error('Não foi possível ler este pedido (' + response.status + ').'), { status: 502 });
+    if (/too long|too large|too many/i.test(msg)) throw Object.assign(Error('O pedido tem anexos grandes demais. Tira alguns e tenta outra vez.'), { status: 422 });
+    throw Object.assign(Error('Não foi possível ler este pedido agora. Tenta outra vez.'), { status: 502 });
   }
   if (data.stop_reason === 'max_tokens') throw Object.assign(Error('O pedido é grande demais para uma leitura. Divide-o em partes.'), { status: 422 });
   const call = (data.content || []).find(b => b.type === 'tool_use' && b.name === TOOL.name);
   if (!call) throw Object.assign(Error('Não foi possível ler este pedido. Tenta de novo.'), { status: 502 });
-  return { reading: normalizeReading(call.input), toolUse: call, usage: data.usage || {} };
+  return { reading: normalizeReading(call.input), toolUse: call, usage: data.usage || {}, model: resolvedModel || model };
+}
+
+// Diagnóstico para o administrador: que modelos a conta tem e se uma chamada mínima funciona.
+export async function checkClaude({ apiKey, model = MODEL, fetchImpl = fetch }) {
+  if (!apiKey) return { configured: false };
+  const out = { configured: true, wanted: model };
+  try { out.models = await listModels({ apiKey, fetchImpl }); } catch (e) { out.modelsError = e.message; out.models = []; }
+  out.using = resolvedModel || (out.models.length ? pickModel(out.models, model) : model);
+  const { response, data } = await post({ model: out.using, max_tokens: 5, messages: [{ role: 'user', content: 'Responde só: OK' }] }, apiKey, fetchImpl);
+  out.test = response.ok ? 'ok' : `${response.status} ${data?.error?.type || ''}: ${String(data?.error?.message || '').slice(0, 300)}`;
+  if (response.ok && out.using !== model) resolvedModel = out.using;
+  return out;
 }

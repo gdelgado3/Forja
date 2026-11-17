@@ -1,6 +1,6 @@
 import http from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
-import { MODEL, firstMessage, callClaude } from './agent.mjs';
+import { MODEL, firstMessage, callClaude, checkClaude } from './agent.mjs';
 import { randomBytes, createHash, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import { mkdir, readFile } from 'node:fs/promises';
@@ -359,6 +359,7 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
       }
       if(path.startsWith('/api/pilot/admin/')) {
         requireValue(auth.role==='admin','Área de administração.',403);
+        if(path==='/api/pilot/admin/ai-check' && req.method==='GET') return reply(res,await checkClaude({apiKey:aiKey,model:aiModel,fetchImpl:aiFetch}));
         if(path==='/api/pilot/admin/workshops' && req.method==='GET') {
           const offices=db.prepare(`SELECT w.*,u.email,u.password IS NOT NULL AS active FROM workshops w JOIN users u ON u.workshop=w.id ORDER BY w.name`).all();
           return reply(res,offices.map(o=>{
