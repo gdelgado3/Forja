@@ -169,3 +169,14 @@
 .pilot-ai-lines li label { border-bottom:0; flex:1 1 320px; }
 .pilot-ai-price { display:flex; align-items:center; gap:6px; font-size:13px; }
 .pilot-ai-price input { width:90px; padding:6px 8px; border:1px solid #c9cec4; border-radius:6px; font:inherit; }
+
+/* Orçamento lido de um PDF */
+.quote-read { margin:16px 0; padding:16px; border:2px solid #214d3b; border-radius:12px; background:#f7faf6; }
+.quote-read h3 { margin:0 0 10px; font-size:16px; }
+.quote-totals { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:10px; }
+.quote-totals div { background:#fff; border:1px solid #dfe5dc; border-radius:10px; padding:8px 12px; min-width:140px; }
+.quote-totals small { display:block; color:#5f6a62; font-size:12px; }
+.quote-totals strong { font-size:18px; }
+.quote-table { width:100%; border-collapse:collapse; font-size:13px; }
+.quote-table th, .quote-table td { text-align:left; padding:6px 8px; border-bottom:1px solid #e6e9e2; }
+.quote-table td:nth-child(n+2), .quote-table th:nth-child(n+2) { text-align:right; white-space:nowrap; }
