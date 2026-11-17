@@ -359,7 +359,15 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
       }
       if(path.startsWith('/api/pilot/admin/')) {
         requireValue(auth.role==='admin','Área de administração.',403);
-        if(path==='/api/pilot/admin/ai-check' && req.method==='GET') return reply(res,await checkClaude({apiKey:aiKey,model:aiModel,fetchImpl:aiFetch}));
+        if(path==='/api/pilot/admin/ai-check' && req.method==='GET') {
+          const out=await checkClaude({apiKey:aiKey,model:aiModel,fetchImpl:aiFetch});
+          if(url.searchParams.get('full')==='1' && aiKey) {
+            const demo={request:'Exemplo fictício: 3 prateleiras em L em inox escovado, 1200, 800 e 600 mm de comprimento, 250 mm de fundo e aba de 150 mm.',fields:{},files:[]};
+            try { const r=await callClaude([firstMessage(demo,[],[]).message],{apiKey:aiKey,model:aiModel,fetchImpl:aiFetch}); out.full={ok:true,model:r.model,lines:r.reading.lines.length,summary:r.reading.summary}; }
+            catch(e) { out.full={ok:false,error:e.message,detail:e.detail||''}; }
+          }
+          return reply(res,out);
+        }
         if(path==='/api/pilot/admin/workshops' && req.method==='GET') {
           const offices=db.prepare(`SELECT w.*,u.email,u.password IS NOT NULL AS active FROM workshops w JOIN users u ON u.workshop=w.id ORDER BY w.name`).all();
           return reply(res,offices.map(o=>{

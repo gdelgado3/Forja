@@ -29,6 +29,8 @@ Componentes escondidos: depois de ler, pensa que peças internas, de fixação o
 
 Pedidos grandes (mapa de quantidades, caderno de encargos, memória, desenhos): filtra as linhas da serralharia; procura o que muda o preço (classe do aço, EXC2/EXC3 da EN 1090, proteção e espessuras em µm, intumescente R30/R60, galvanização, controlo de soldaduras, classe dos parafusos); conta o que o "incluindo" esconde; procura incoerências entre desenhos. Cada facto leva documento e página.
 
+Medidas tiradas pela Forja de desenhos DXF/IFC são exatas: usa-as para as quantidades (estado "dito") e põe na origem o ficheiro e a camada. Diz que peça é cada medida; se não for claro, pergunta em vez de adivinhar.
+
 Linhas do orçamento: uma linha por material, processo, compra ou serviço, com quantidade e unidade (un, m, m², m³, kg ou h) e a conta na base. Horas de mão de obra só como estimativa "a confirmar". Usa nomes parecidos com os do catálogo da oficina quando fizer sentido, para os custos baterem.
 
 Se a oficina te corrigir ou perguntar algo numa mensagem seguinte, responde em "resposta" e devolve de novo a leitura completa, já corrigida.
@@ -90,6 +92,19 @@ export function normalizeReading(input) {
   };
 }
 
+// Medidas que o leitor local tirou de desenhos e PDFs (separador 2), para a leitura as usar.
+export function measuresText(project) {
+  const rows = [];
+  for (const a of Array.isArray(project.analyses) ? project.analyses : []) {
+    for (const r of Array.isArray(a?.rows) ? a.rows : []) {
+      if (rows.length >= 200) break;
+      if (typeof r?.value === 'number' && Number.isFinite(r.value)) rows.push(`- [${str(a.kind || '', 10)} ${str(a.name || '', 80)}] ${str(r.label || '', 140)}: ${r.value} ${str(r.unit || '', 8)}${r.source ? ' · ' + str(r.source, 120) : ''}${r.applied ? ' · confirmado pela oficina' : ''}`);
+      else if (r?.kind === 'material' && r.value) rows.push(`- [${str(a.kind || '', 10)} ${str(a.name || '', 80)}] material: ${str(String(r.value), 80)}`);
+    }
+  }
+  return rows.length ? '\nMedidas tiradas dos ficheiros pela Forja (desenhos DXF/IFC são exatos):\n' + rows.join('\n') : '';
+}
+
 // Primeira mensagem: pedido, medidas já guardadas, anexos e nomes do catálogo.
 export function firstMessage(project, files, catalog) {
   const content = [];
@@ -112,6 +127,7 @@ export function firstMessage(project, files, catalog) {
     'Pedido do cliente (contactos já retirados):', str(project.request || '', 12000) || '(sem texto; ver anexos)',
     fields.length ? '\nDados já anotados pela oficina:\n' + fields.join('\n') : '',
     catalog.length ? '\nArtigos do catálogo da oficina (só nomes e unidades):\n' + catalog.slice(0, 200).map(c => `- ${str(c.label, 180)} (${c.unit})`).join('\n') : '',
+    drawingMeasures(project),
     skipped.length ? '\nAnexos não enviados: ' + skipped.join('; ') : '',
     '\nLê o pedido e regista a leitura.',
   ].filter(Boolean).join('\n');
@@ -142,6 +158,9 @@ async function post(body, apiKey, fetchImpl) {
   return { response, data: await response.json().catch(() => ({})) };
 }
 
+export function drawingMeasures(project) {
+  return measuresText(project);
+}
 export async function callClaude(messages, { apiKey, model = MODEL, fetchImpl = fetch } = {}) {
   if (!apiKey) throw Object.assign(Error('A leitura de pedidos ainda não está ligada neste servidor.'), { status: 503 });
   const body = { model: resolvedModel || model, max_tokens: 8000, system: SYSTEM, messages, tools: [TOOL], tool_choice: { type: 'tool', name: TOOL.name } };
@@ -162,11 +181,12 @@ export async function callClaude(messages, { apiKey, model = MODEL, fetchImpl = 
   if (!response.ok) {
     const msg = data?.error?.message || '';
     console.error('Erro na API Anthropic', response.status, data?.error?.type || '', '-', msg.slice(0, 300));
+    const detail = `${response.status} ${data?.error?.type || ''}: ${msg.slice(0, 300)}`;
     if (response.status === 401) throw Object.assign(Error('O serviço de leitura recusou o acesso. Tenta mais tarde.'), { status: 502 });
     if (/credit balance/i.test(msg) || response.status === 402) throw Object.assign(Error('A leitura de pedidos está em pausa. Tenta mais tarde.'), { status: 502 });
     if (response.status === 429 || response.status === 529) throw Object.assign(Error('O serviço está ocupado. Tenta de novo dentro de um minuto.'), { status: 503 });
     if (/too long|too large|too many/i.test(msg)) throw Object.assign(Error('O pedido tem anexos grandes demais. Tira alguns e tenta outra vez.'), { status: 422 });
-    throw Object.assign(Error('Não foi possível ler este pedido agora. Tenta outra vez.'), { status: 502 });
+    throw Object.assign(Error('Não foi possível ler este pedido agora. Tenta outra vez.'), { status: 502, detail });
   }
   if (data.stop_reason === 'max_tokens') throw Object.assign(Error('O pedido é grande demais para uma leitura. Divide-o em partes.'), { status: 422 });
   const call = (data.content || []).find(b => b.type === 'tool_use' && b.name === TOOL.name);
