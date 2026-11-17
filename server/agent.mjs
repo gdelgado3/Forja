@@ -120,7 +120,7 @@ export function firstMessage(project, files, catalog) {
 }
 
 export async function callClaude(messages, { apiKey, model = MODEL, fetchImpl = fetch } = {}) {
-  if (!apiKey) throw Object.assign(Error('A leitura com IA ainda não está ligada neste servidor.'), { status: 503 });
+  if (!apiKey) throw Object.assign(Error('A leitura de pedidos ainda não está ligada neste servidor.'), { status: 503 });
   const response = await fetchImpl('https://api.anthropic.com/v1/messages', {
     method: 'POST', signal: AbortSignal.timeout(180000),
     headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
@@ -130,14 +130,14 @@ export async function callClaude(messages, { apiKey, model = MODEL, fetchImpl = 
   if (!response.ok) {
     const msg = data?.error?.message || '';
     console.error('Erro na API Anthropic', response.status, data?.error?.type || '');
-    if (response.status === 401) throw Object.assign(Error('A chave da IA no servidor é inválida.'), { status: 502 });
-    if (/credit balance/i.test(msg) || response.status === 402) throw Object.assign(Error('A conta da IA está sem saldo. Avisa a equipa da Forja.'), { status: 502 });
-    if (response.status === 429 || response.status === 529) throw Object.assign(Error('A IA está ocupada. Tenta de novo dentro de um minuto.'), { status: 503 });
-    if (response.status === 400 && /model/i.test(msg)) throw Object.assign(Error('O modelo de IA configurado não existe. Avisa a equipa da Forja.'), { status: 502 });
-    throw Object.assign(Error('A IA não conseguiu ler este pedido (' + response.status + ').'), { status: 502 });
+    if (response.status === 401) throw Object.assign(Error('A leitura de pedidos não está bem configurada no servidor. Avisa a equipa da Forja.'), { status: 502 });
+    if (/credit balance/i.test(msg) || response.status === 402) throw Object.assign(Error('A leitura de pedidos está em pausa. Avisa a equipa da Forja.'), { status: 502 });
+    if (response.status === 429 || response.status === 529) throw Object.assign(Error('O serviço está ocupado. Tenta de novo dentro de um minuto.'), { status: 503 });
+    if (response.status === 400 && /model/i.test(msg)) throw Object.assign(Error('A leitura de pedidos não está bem configurada no servidor. Avisa a equipa da Forja.'), { status: 502 });
+    throw Object.assign(Error('Não foi possível ler este pedido (' + response.status + ').'), { status: 502 });
   }
   if (data.stop_reason === 'max_tokens') throw Object.assign(Error('O pedido é grande demais para uma leitura. Divide-o em partes.'), { status: 422 });
   const call = (data.content || []).find(b => b.type === 'tool_use' && b.name === TOOL.name);
-  if (!call) throw Object.assign(Error('A IA não devolveu uma leitura utilizável. Tenta de novo.'), { status: 502 });
+  if (!call) throw Object.assign(Error('Não foi possível ler este pedido. Tenta de novo.'), { status: 502 });
   return { reading: normalizeReading(call.input), toolUse: call, usage: data.usage || {} };
 }

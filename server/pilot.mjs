@@ -507,15 +507,15 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
         return reply(res,{enabled:!!aiKey,remaining:aiRemaining(office),demo:!!office.demo,turns:aiPublic(aiThread(office.id,ai[1]))});
       }
       if(ai && req.method==='POST') {
-        requireValue(aiKey,'A leitura com IA ainda não está ligada neste servidor.',503);
+        requireValue(aiKey,'A leitura de pedidos ainda não está ligada neste servidor.',503);
         const input=await jsonBody(req,16*1024);
         const ask=typeof input.message==='string'?input.message.trim().slice(0,2000):'';
         const office=workshopLookup.get(auth.workshop),state=JSON.parse(office.state);
         const project=state.projects.find(p=>p.id===ai[1]);
         requireValue(project,'Guarda o pedido antes de o mandar ler.',404);
         requireValue(String(project.request||'').trim() || project.files.length,'Escreve o pedido ou junta um anexo antes de pedir a leitura.');
-        requireValue(aiRemaining(office)>0,office.demo?`A demonstração permite ${aiDemoLimit} leituras com IA. Fala connosco para um piloto.`:'Chegaste ao limite diário de leituras com IA.',429);
-        requireValue(db.prepare('SELECT COUNT(*) AS n FROM ai_calls WHERE created>?').get(new Date(Date.now()-day).toISOString()).n<aiGlobalDaily,'A leitura com IA está em pausa por hoje. Tenta amanhã.',429);
+        requireValue(aiRemaining(office)>0,office.demo?`A demonstração permite ${aiDemoLimit} pedidos inseridos. Fala connosco para um piloto.`:'Chegaste ao limite diário de pedidos inseridos.',429);
+        requireValue(db.prepare('SELECT COUNT(*) AS n FROM ai_calls WHERE created>?').get(new Date(Date.now()-day).toISOString()).n<aiGlobalDaily,'A leitura de pedidos está em pausa por hoje. Tenta amanhã.',429);
         const key=office.id+'/'+project.id;
         requireValue(!aiBusy.has(key),'Já há uma leitura em curso para este pedido.',409);
         let turns=input.restart?[]:aiThread(office.id,project.id);

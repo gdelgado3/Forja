@@ -68,12 +68,12 @@ assert.equal(second.data.turns.length,2);assert.equal(second.data.turns[1].readi
 // Erro da API não gasta leituras; mensagem clara.
 mode='nocredit';
 const fail=await call('/ai/p1',{method:'POST',cookie:demo.cookie,json:{message:'E o motor?'}});
-assert.equal(fail.status,502);assert.match(fail.data.error,/sem saldo/);
+assert.equal(fail.status,502);assert.match(fail.data.error,/em pausa/);
 mode='ok';
 assert.equal((await call('/ai/p1',{method:'POST',cookie:demo.cookie,json:{restart:true}})).data.turns.length,1,'recomeçar limpa a conversa');
 // Limite da demonstração.
 const over=await call('/ai/p1',{method:'POST',cookie:demo.cookie,json:{restart:true}});
-assert.equal(over.status,429);assert.match(over.data.error,/3 leituras/);
+assert.equal(over.status,429);assert.match(over.data.error,/3 pedidos inseridos/);
 // Outra oficina não vê a conversa.
 const other=await call('/demo',{method:'POST',json:{}});
 assert.deepEqual((await call('/ai/p1',{cookie:other.cookie})).data.turns,[]);

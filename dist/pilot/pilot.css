@@ -162,3 +162,10 @@
 .pilot-ai-table td, .pilot-ai-table th { font-size:12px; padding:6px; vertical-align:top; text-align:left; }
 .pilot-ai-wait::before { content:''; display:inline-block; width:12px; height:12px; margin-right:8px; border:2px solid #214d3b; border-right-color:transparent; border-radius:50%; animation:pilotspin 1s linear infinite; vertical-align:-1px; }
 @keyframes pilotspin { to { transform:rotate(360deg); } }
+.pilot-conf { display:inline-flex; align-items:center; gap:6px; }
+.pilot-bar { display:inline-block; width:44px; height:6px; border-radius:3px; background:rgba(0,0,0,.12); overflow:hidden; }
+.pilot-bar > span { display:block; height:100%; background:currentColor; border-radius:3px; }
+.pilot-ai-lines li { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px 12px; border-bottom:1px solid #eceee8; }
+.pilot-ai-lines li label { border-bottom:0; flex:1 1 320px; }
+.pilot-ai-price { display:flex; align-items:center; gap:6px; font-size:13px; }
+.pilot-ai-price input { width:90px; padding:6px 8px; border:1px solid #c9cec4; border-radius:6px; font:inherit; }
