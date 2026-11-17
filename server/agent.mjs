@@ -211,14 +211,15 @@ export async function callClaude(messages, { apiKey, model = MODEL, fetchImpl = 
   const signal = AbortSignal.timeout(LIMIT_MS);
   const useThinking = thinking && !thinkingOff;
   const body = { model: resolvedModel || model, max_tokens: useThinking ? 48000 : 32000, system: SYSTEM, messages, tools: [TOOL], tool_choice: { type: 'auto' },
-    ...(useThinking ? { thinking: { type: 'enabled', budget_tokens: 16000 } } : {}) };
+    // Raciocínio adaptativo com esforço alto: a análise mais completa que o modelo faz.
+    ...(useThinking ? { thinking: { type: 'adaptive' }, output_config: { effort: 'high' } } : {}) };
   let response, data;
   try {
     ({ response, data } = await post(body, apiKey, fetchImpl, signal));
-    if (!response.ok && body.thinking && /thinking|budget/i.test(data?.error?.message || '')) {
+    if (!response.ok && body.thinking && /thinking|budget|effort|output_config/i.test(data?.error?.message || '')) {
       // Este modelo não aceita o raciocínio alargado assim: segue sem ele.
       console.error('Sem raciocínio alargado:', String(data?.error?.message || '').slice(0, 200));
-      thinkingOff = true; delete body.thinking; body.max_tokens = 32000;
+      thinkingOff = true; delete body.thinking; delete body.output_config; body.max_tokens = 32000;
       ({ response, data } = await post(body, apiKey, fetchImpl, signal));
     }
     const isModelError = () => !response.ok && (response.status === 404 || data?.error?.type === 'not_found_error' || /model[^.]*(not found|does not exist|not available|invalid)/i.test(data?.error?.message || ''));

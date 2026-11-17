@@ -36,6 +36,6 @@ console.log('PASS: modelo inexistente → escolhe um Sonnet disponível e lembra
   const r=await callClaude([{role:'user',content:'x'}],{apiKey:'k',model:'claude-sonnet-9',fetchImpl:fake});
   assert.equal(r.reading.lines.length,1);assert.equal(r.usage.output_tokens,50);
   assert.deepEqual(r.content.map(b=>b.type),['thinking','tool_use']);assert.equal(r.content[0].signature,'sig');
-  assert.equal(sentBody[0].stream,true);assert.ok(sentBody[0].thinking);assert.equal(sentBody[1].thinking,undefined,'sem raciocínio alargado na segunda tentativa');
+  assert.equal(sentBody[0].stream,true);assert.ok(sentBody[0].thinking);assert.equal(sentBody[1].thinking,undefined,'sem raciocínio alargado na segunda tentativa');assert.equal(sentBody[0].thinking.type,'adaptive');assert.equal(sentBody[1].output_config,undefined);
   console.log('PASS: streaming com raciocínio e JSON em pedaços; recua quando o modelo não aceita o raciocínio.');
 }
