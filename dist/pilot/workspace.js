@@ -15,6 +15,7 @@ function renderPilotWorkspace() {
       ${window.forjaPilot.demo?`<button type="button" class="pilot-menu-card" data-pilot-feedback-go>${icon('<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>')}<strong>Dar feedback</strong><small>Diz-nos o que achaste e o que mudavas. Demora um minuto.</small></button>`:
       `<button type="button" class="pilot-menu-card" data-pilot-drawing>${icon('<path d="M3 17l14-14 4 4L7 21H3z"/><path d="M14 6l4 4M5 15l2 2M8 12l2 2M11 9l2 2"/>')}<strong>Pedir desenho técnico</strong><small>${drawings?drawings+' pedido(s) de desenho enviado(s).':'Envia a folha de medidas e as fotos e recebe o alçado cotado.'}</small></button>`}
     </div>
+    ${pilotToolsHtml()}
     <section id="pilot-history"><h2>Histórico</h2>
     ${state.projects.length?`<div class="toolbar"><input class="field search" id="project-search" placeholder="Procurar projeto ou cliente…" value="${esc(query)}" aria-label="Procurar orçamentos"></div>
     <div class="card table-scroll"><table class="project-list"><thead><tr><th>Projeto / Cliente</th><th>Estado</th><th>Valor sem IVA</th><th>Memória</th><th></th></tr></thead><tbody id="project-rows">${projectRows(filtered)}</tbody></table></div>`:
@@ -26,7 +27,7 @@ function renderPilotWorkspace() {
     ${isDetail?'<button data-action="nav" data-view="projects">Orçamentos anteriores</button>':''}
     <button data-action="export">Exportar cópia</button><button data-pilot-action="logout">Sair</button></div></header>
     <main class="pilot-content"><div class="pilot-sync no-print" id="pilot-save-status" role="status">${esc(window.forjaPilot.status())}</div>
-    <section id="pilot-responses" class="no-print"></section>${isDetail?detail(project()):projectsHtml()}${isDetail?pilotPriceCheck(project()):''}${pilotFeedbackHtml()}</main></div>`;
+    ${pilotQuickHtml()}<section id="pilot-responses" class="no-print"></section>${isDetail?detail(project()):projectsHtml()}${isDetail?pilotPriceCheck(project()):''}${pilotFeedbackHtml()}</main></div>`;
   renderPilotResponses();
 }
 function renderPilotResponses() {
@@ -108,6 +109,57 @@ function pilotPriceCheck(p) {
     <p class="smalltext muted">${p.priceCheck==='under'?'Abaixo do preço certo: é o erro mais caro para a oficina. A Forja aprende a arredondar para cima.':'Ajuda a Forja a nunca orçar abaixo do custo.'}</p></section>`;
 }
 let pilotFeedback={rating:null,text:'',sent:false};
+let pilotQuick={rating:null,closed:false};
+window.forjaRender=()=>render();
+function pilotQuickHtml() {
+  if(!window.forjaPilot.demo || !state.projects.some(p=>p.id==='exemplo') || pilotQuick.closed || pilotFeedback.sent)return '';
+  if(pilotQuick.rating)return `<div class="pilot-quick no-print" role="status"><strong>Obrigado pela nota ${pilotQuick.rating}!</strong> <span>Em uma frase: o que mudavas?</span>
+    <button type="button" class="small" data-pilot-feedback-go>Escrever</button><button type="button" class="small ghost" data-pilot-quick-close aria-label="Fechar">×</button></div>`;
+  return `<div class="pilot-quick no-print"><strong>Que nota dás à Forja?</strong>
+    <div class="pilot-rating" role="group" aria-label="Nota rápida de 1 a 5">${[1,2,3,4,5].map(n=>`<button type="button" data-pilot-quick="${n}">${n}</button>`).join('')}</div>
+    <small>1 = não usava · 5 = usava já</small><button type="button" class="small ghost" data-pilot-quick-close aria-label="Fechar">×</button></div>`;
+}
+function pilotToolsHtml() {
+  const zones=window.forjaPilot.privacyZones();
+  const link=window.forjaPilot.formLink;
+  return `<section class="card card-pad pilot-tools no-print">
+    ${link?`<div><h2>Link para os teus clientes</h2><p class="smalltext muted">Manda este link por WhatsApp ou email. O cliente preenche o pedido e junta fotos; o pedido aparece aqui sozinho.</p>
+      <div class="pilot-link-row"><input class="field" id="pilot-form-link" readonly value="${esc(link)}" aria-label="Link do formulário"><button type="button" class="small" data-pilot-form-copy>Copiar</button></div>
+      <p class="smalltext muted" id="pilot-form-copied" role="status"></p></div>`:''}
+    <div><h2>Proteger dados dos clientes</h2><p class="smalltext muted">${zones?`${zones} zona(s) tapada(s) em todas as fotos e PDFs, no teu aparelho, antes de enviar.`:'Marca onde ficam o nome, a morada e o NIF nas tuas folhas. A Forja tapa essas zonas antes de enviar.'} Telefones, emails, NIF e códigos postais escritos no texto são sempre tapados.</p>
+      <button type="button" class="small" data-pilot-privacy>${zones?'Alterar zonas':'Marcar zonas'}</button></div></section>`;
+}
+window.importPilotRequests=async list=>{
+  let added=0;
+  for(const r of list) {
+    if(state.projects.some(p=>p.id===r.id))continue;
+    const t=now();
+    state.projects.push({id:r.id,code:nextCode(),name:(r.type||'Pedido')+' · '+r.client,client:r.client,contact:r.contact||'',place:r.place||'',channel:'Formulário',
+      request:r.request||'',created:r.created||t,demo:false,status:'Rascunho',fields:{type:r.type||'',material:'',width:'',height:'',quantity:'1',finish:''},
+      lines:[],markup:state.settings.markup,vat:state.settings.vat,versions:[],files:r.files||[],
+      memory:[{id:uid(),kind:'Pendente',text:'Pedido feito pelo cliente no formulário. Confirmar medidas e material antes de orçar.',source:'Formulário do cliente',created:t}],
+      events:[{id:uid(),text:'Pedido recebido pelo formulário'+(r.files?.length?` com ${r.files.length} anexo(s).`:'.'),source:'Formulário do cliente',created:t}]});
+    added++;
+  }
+  if(added){persist();if(!document.querySelector('#modal')?.open && !document.querySelector('.pv-overlay'))render();toast(added===1?'Chegou um pedido novo pelo formulário.':`Chegaram ${added} pedidos novos pelo formulário.`);}
+  return true;
+};
+document.addEventListener('click',async ev=>{
+  const t=ev.target.closest('[data-pilot-quick],[data-pilot-quick-close],[data-pilot-privacy],[data-pilot-form-copy]');
+  if(!t)return;
+  if(t.hasAttribute('data-pilot-privacy')){window.forjaPilot.editPrivacy();return;}
+  if(t.hasAttribute('data-pilot-quick-close')){pilotQuick.closed=true;render();return;}
+  if(t.hasAttribute('data-pilot-form-copy')){
+    const field=document.querySelector('#pilot-form-link'),status=document.querySelector('#pilot-form-copied');
+    field.select();
+    try{await navigator.clipboard.writeText(field.value);status.textContent='Link copiado.';}catch{status.textContent='Link selecionado. Copia com Ctrl+C.';}
+    return;
+  }
+  const n=Number(t.dataset.pilotQuick);
+  t.closest('.pilot-quick').querySelectorAll('button').forEach(b=>b.disabled=true);
+  try{await window.forjaPilot.sendFeedback({rating:n,text:''});pilotQuick.rating=n;pilotFeedback.rating=n;render();}
+  catch(e){toast(e.message);render();}
+});
 function pilotFeedbackHtml() {
   if(pilotFeedback.sent)return '<section class="card card-pad pilot-feedback no-print"><h2>Obrigado pelo feedback!</h2><p>A equipa da Forja vai ler.</p><button type="button" class="small" data-feedback-again>Enviar mais</button></section>';
   return `<section class="card card-pad pilot-feedback no-print"><h2>O que achaste da Forja?</h2>
@@ -148,10 +200,12 @@ document.addEventListener('click',async ev=>{
       <div class="pilot-drawing">
       <label>Artigos<textarea class="field pilot-catalog-text" id="pc-text" rows="12" placeholder="Chapa inox 2 mm;m²;78&#10;Tubo aço 40×40×2;m;4,50&#10;Montagem em obra;h;35">${esc(rows)}</textarea></label>
       <label>Ou importar um ficheiro CSV<input class="field" id="pc-file" type="file" accept=".csv,.txt,text/csv,text/plain"></label>
+      <label>Ou ler orçamentos antigos (PDF com texto ou .txt)<input class="field" id="pc-quotes" type="file" multiple accept=".pdf,.txt,application/pdf,text/plain"></label>
       <p class="smalltext muted">Unidades: un, m, m², m³, kg ou h. Separa com ponto e vírgula ou tabulação. Até 500 artigos.</p>
       <p id="pc-status" class="pilot-message" role="alert" hidden></p>
       <div class="pilot-start"><button type="button" class="primary" data-pilot-catalog-save>Guardar catálogo</button><button type="button" data-action="close">Cancelar</button></div></div>`);
     document.querySelector('#pc-file').addEventListener('change',async e=>{const f=e.target.files[0];if(f)document.querySelector('#pc-text').value=(await f.text()).slice(0,200000);});
+    document.querySelector('#pc-quotes').addEventListener('change',e=>pilotImportQuotes([...e.target.files]));
     return;
   }
   if(target.hasAttribute('data-pilot-catalog-save')) {
@@ -198,7 +252,7 @@ document.addEventListener('click',async ev=>{
     target.disabled=true;say('A enviar…');
     try {
       const saved=[];
-      for(const f of files){const id=uid();await window.forjaPilot.putFile(id,f);saved.push({id,name:f.name,size:f.size,type:f.type,created:now()});}
+      for(const f of files){const id=uid();const out=await window.forjaPilot.putFile(id,f);saved.push({id,name:f.name,size:out?.size||f.size,type:out?.type||f.type,created:now()});}
       const np={id:uid(),code:nextCode(),name:'Desenho técnico · '+name,client,channel:'Outro',kind:'desenho',request:notes||'Medidas na folha em anexo.',created:now(),demo:false,status:'Rascunho',
         fields:{type:'Desenho técnico',material:'',width:'',height:'',quantity:'1',finish:''},lines:[],markup:state.settings.markup,vat:state.settings.vat,versions:[],files:saved,memory:[],
         events:[{id:uid(),text:'Pedido de desenho técnico enviado à Forja.',source:'Oficina',created:now()}]};
@@ -302,6 +356,32 @@ function pilotAfterEdit(p,l,k) {
     pilotAutoPrice(l,{withUnit:true});dirty(p);event(p,'Linha «'+l.desc+'»: custo procurado no catálogo','Catálogo da oficina');persist();render();return true;
   }
   return false;
+}
+async function pilotImportQuotes(files) {
+  const status=document.querySelector('#pc-status'),say=t=>{status.hidden=!t;status.textContent=t;};
+  if(!files.length)return;
+  if(files.length>20)return say('Escolhe até 20 orçamentos de cada vez.');
+  say('A ler os orçamentos…');
+  try {
+    const {parseQuoteText,toCatalog}=await import('/pilot/import-quotes.js');
+    const lines=[];let warnings=0,empty=[];
+    for(const f of files) {
+      const text=f.type==='application/pdf'||/\.pdf$/i.test(f.name)?await window.forjaPilot.pdfText(f,20):await f.text();
+      const r=parseQuoteText(String(text).slice(0,400000));
+      if(!r.lines.length)empty.push(f.name);
+      lines.push(...r.lines.map(l=>({...l,unit:l.unit==='ml'?'m':l.unit,lastSeen:new Date(f.lastModified||Date.now()).toISOString().slice(0,10)})));
+      warnings+=r.warnings.length;
+    }
+    const box=document.querySelector('#pc-text');
+    const fold=s=>s.normalize('NFD').replace(/\p{M}/gu,'').toLowerCase().replace(/\s+/g,' ').trim();
+    const have=new Set(box.value.split(/\r?\n/).map(l=>l.split(/\t|;/)).filter(c=>c.length>=2).map(c=>fold(c[0])+'|'+c[1].trim()));
+    const fresh=toCatalog(lines).filter(x=>!have.has(fold(x.label)+'|'+x.unit));
+    if(fresh.length)box.value=(box.value.trim()?box.value.trim()+'\n':'')+fresh.map(x=>`${x.label};${x.unit};${String(Math.round(x.price*100)/100).replace('.',',')}`).join('\n');
+    say(`${fresh.length} artigo(s) novos a partir de ${lines.length} linha(s) lidas.`+
+      (warnings?` ${warnings} linha(s) ficaram de fora por não baterem certo (quantidade × preço ≠ total ou sem preço).`:'')+
+      (empty.length?` Sem linhas lidas em: ${empty.join(', ')} (se for digitalizado, não tem texto).`:'')+
+      ' Atenção: os preços dos orçamentos são de venda. Se o catálogo for de custos, ajusta-os antes de guardar, ou o acréscimo é aplicado duas vezes.');
+  } catch(e) {say('Não foi possível ler estes orçamentos: '+e.message);}
 }
 function pilotParseCatalog(text) {
   const units={'un':'un','un.':'un','uni':'un','unid':'un','unid.':'un','unidade':'un','unidades':'un','m':'m','ml':'m','m2':'m²','m²':'m²','m3':'m³','m³':'m³','kg':'kg','h':'h','hr':'h','hora':'h','horas':'h'};

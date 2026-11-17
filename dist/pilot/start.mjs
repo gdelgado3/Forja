@@ -40,7 +40,8 @@ function landing() {
     <p>Envia o pedido de um cliente (texto, foto, esquiço ou PDF) e recebe o rascunho do orçamento.</p>
     <p id="pilot-message" class="pilot-message" role="alert" hidden></p>
     <button class="primary pilot-try" type="button" data-pilot-action="demo">Experimentar agora</button>
-    <p class="muted smalltext">Abre uma oficina de demonstração, sem conta. Não envies dados pessoais de clientes.</p></section>
+    <p class="muted smalltext">Abre uma oficina de demonstração, sem conta. Não envies dados pessoais de clientes.</p>
+    <details class="muted smalltext"><summary>Privacidade</summary><p>A oficina é responsável pelos dados dos seus clientes. A Forja trata-os por conta da oficina para preparar orçamentos, com alojamento na UE e acesso limitado à equipa autorizada da oficina, da Forja e dos fornecedores contratados para prestar o serviço. Os dados pessoais ficam excluídos do treino de modelos. A Forja apaga os pedidos que não avancem até 90 dias após a receção e os restantes até 90 dias após o fecho do orçamento. O fim do piloto antecipa o apagamento, salvo obrigação legal. Para exercer direitos sobre os dados de um pedido, contacte a oficina.</p></details></section>
     <section class="card card-pad"><h2>Já tenho conta</h2>
     <form data-pilot-form="login"><label>Email<input class="field" name="email" type="email" autocomplete="username" required></label>
     <label>Palavra-passe<input class="field" name="password" type="password" required autocomplete="current-password" maxlength="128"></label>
@@ -253,6 +254,8 @@ function loadScript(src) {
 }
 async function workshop() {
   const initial=await api('/workspace');
+  const privacy=await import('/pilot/privacy.mjs');
+  let zones=initial.state.settings?.privacy?.zones||[];
   let revision=initial.revision, queue=Promise.resolve(), pending=0, failure='', lastQueued=JSON.stringify(initial.state);
   function status(message) {
     const node=document.querySelector('#pilot-save-status');
@@ -263,6 +266,12 @@ async function workshop() {
     demo:!!initial.demo,
     status:()=>failure || (pending?'A guardar…':'Guardado na oficina'),
     save(state) {
+      const found=privacy.redactState(state);
+      if(found.length && typeof window.toast==='function') {
+        const kinds=[...new Set(found)].join(', ');
+        setTimeout(()=>window.toast(`Tapámos dados pessoais no texto (${kinds}). Os contactos do cliente ficam só no campo Cliente.`),0);
+        if(typeof window.forjaRender==='function')setTimeout(window.forjaRender,0);
+      }
       const serialized=JSON.stringify(state);
       if(serialized===lastQueued)return true;
       lastQueued=serialized;
@@ -282,7 +291,19 @@ async function workshop() {
       return true;
     },
     async flush() {await queue;return !failure;},
-    async putFile(id,blob) {await request('/files/'+encodeURIComponent(id),{method:'PUT',blob});},
+    async putFile(id,blob) {
+      const prepared=await privacy.prepareUpload(blob,zones);
+      if(!await privacy.confirmPreview(prepared,blob.name))throw new Error('Envio cancelado. O ficheiro não foi guardado.');
+      await request('/files/'+encodeURIComponent(id),{method:'PUT',blob:prepared.blob});
+      return {size:prepared.blob.size,type:prepared.blob.type};
+    },
+    privacyZones:()=>zones.length,
+    pdfText:(blob,pages)=>privacy.pdfText(blob,pages),
+    editPrivacy() {
+      privacy.editZones(zones,async next=>{zones=(await api('/privacy',{method:'PUT',json:{zones:next}})).zones;if(typeof window.forjaRender==='function')window.forjaRender();});
+    },
+    formLink:initial.formToken?location.origin+'/pedido/'+initial.formToken:'',
+    markImported:id=>post('/requests/'+encodeURIComponent(id)+'/imported',{}),
     async getFile(id) {return (await request('/files/'+encodeURIComponent(id))).blob();},
     responses:[],
     sendFeedback:data=>post('/feedback',data),
@@ -301,14 +322,26 @@ async function workshop() {
     } catch { /* tenta de novo no próximo ciclo */ }
   }
   window.forjaPilot.refreshResponses=loadResponses;
+  let importing=false;
+  async function loadRequests() {
+    if(importing || typeof window.importPilotRequests!=='function')return;
+    importing=true;
+    try {
+      const list=await api('/requests');
+      if(list.length && await window.importPilotRequests(list) && await window.forjaPilot.flush())
+        for(const r of list) await window.forjaPilot.markImported(r.id).catch(()=>{});
+    } catch { /* tenta de novo no próximo ciclo */ }
+    importing=false;
+  }
   await loadResponses();
-  setInterval(loadResponses,15000);
+  setInterval(()=>{loadResponses();loadRequests();},15000);
   window.addEventListener('beforeunload',event=>{
     if(pending||failure){event.preventDefault();event.returnValue='';}
   });
   await loadScript('/pilot/workspace.js');
   await loadScript('/app.js');
   await loadScript('/interpret.js');
+  loadRequests();
 }
 try {
   const me=await api('/me');

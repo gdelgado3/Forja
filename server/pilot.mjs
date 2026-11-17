@@ -125,6 +125,9 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
     CREATE TABLE IF NOT EXISTS feedback(id TEXT PRIMARY KEY,workshop TEXT REFERENCES workshops(id),rating INTEGER,text TEXT,created TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS responses(id TEXT PRIMARY KEY,workshop TEXT REFERENCES workshops(id),project TEXT NOT NULL,name TEXT,mime TEXT,bytes BLOB,note TEXT,created TEXT NOT NULL);`);
   try { db.exec('ALTER TABLE workshops ADD COLUMN demo INTEGER NOT NULL DEFAULT 0'); } catch { /* coluna já existe */ }
+  try { db.exec('ALTER TABLE workshops ADD COLUMN form_token TEXT'); } catch { /* coluna já existe */ }
+  db.exec(`CREATE TABLE IF NOT EXISTS public_requests(id TEXT PRIMARY KEY,workshop TEXT REFERENCES workshops(id),key TEXT NOT NULL,data TEXT NOT NULL,files TEXT NOT NULL DEFAULT '[]',created TEXT NOT NULL,submitted TEXT,imported TEXT);
+    CREATE UNIQUE INDEX IF NOT EXISTS workshops_form ON workshops(form_token);`);
   const setupToken = db.prepare("SELECT 1 FROM users WHERE role='admin'").get() ? null : (setupCode || token());
   const setupExpires = setupCode ? Infinity : Date.now()+15*60*1000;
   const demoStarts = [];
@@ -135,7 +138,33 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
     {label:'Chapa inox 2 mm (exemplo)',unit:'m²',price:78},{label:'Acabamento escovado (exemplo)',unit:'m²',price:15},
     {label:'Lacagem (exemplo)',unit:'m²',price:18},{label:'Corte e quinagem (exemplo)',unit:'h',price:35},
     {label:'Montagem em obra (exemplo)',unit:'h',price:35}]});
-  const attempts = new Map();
+  const attempts = new Map(), publicAttempts = new Map();
+  const clientIp = req => (trustProxy && String(req.headers['x-forwarded-for']||'').split(',')[0].trim()) || req.socket.remoteAddress || 'local';
+  function limitPublic(req, max=10) {
+    const now=Date.now();
+    for (const [key,entry] of publicAttempts) if (entry.until<=now) publicAttempts.delete(key);
+    const ip=clientIp(req), entry=publicAttempts.get(ip)||{count:0,until:now+60*60*1000};
+    requireValue(entry.count<max,'Já enviaste vários pedidos. Tenta de novo mais tarde ou contacta a oficina.',429);
+    entry.count++;publicAttempts.set(ip,entry);
+  }
+  const formOffice = raw => {
+    requireValue(/^[a-f0-9]{24}$/.test(raw),'Link inválido. Pede à oficina o link correto.',404);
+    const office=db.prepare('SELECT id,name FROM workshops WHERE form_token=?').get(raw);
+    requireValue(office,'Link inválido. Pede à oficina o link correto.',404);
+    return office;
+  };
+  const pendingRequest = (office,id,key) => {
+    const row=db.prepare('SELECT * FROM public_requests WHERE id=? AND workshop=?').get(id,office.id);
+    requireValue(row && typeof key==='string' && key.length===64 && timingSafeEqual(Buffer.from(digest(key),'hex'),Buffer.from(row.key,'hex')),'Pedido não encontrado.',404);
+    requireValue(!row.submitted,'Este pedido já foi enviado.',409);
+    return row;
+  };
+  const publicProject = row => {
+    const d=JSON.parse(row.data);
+    return {id:'pub-'+row.id,client:d.name,contact:[d.phone,d.email].filter(Boolean).join(' · '),place:d.place,type:d.type,
+      request:[d.description,d.measures?'Medidas indicadas pelo cliente: '+d.measures:''].filter(Boolean).join('\n\n'),
+      created:row.submitted||row.created,files:JSON.parse(row.files)};
+  };
   const sessionLookup = db.prepare(`SELECT u.id,u.email,u.role,u.workshop FROM sessions s JOIN users u ON s.user_id=u.id WHERE s.hash=? AND s.expires>?`);
   const workshopLookup = db.prepare('SELECT * FROM workshops WHERE id=?');
   const transaction = fn => {
@@ -153,7 +182,7 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
   function limitAttempts(req) {
     const now = Date.now();
     for (const [key,entry] of attempts) if (entry.until <= now) attempts.delete(key);
-    const ip = (trustProxy && String(req.headers['x-forwarded-for']||'').split(',')[0].trim()) || req.socket.remoteAddress || 'local';
+    const ip = clientIp(req);
     const entry = attempts.get(ip) || {count:0,until:now+15*60*1000};
     requireValue(entry.count < 30, 'Demasiadas tentativas. Tenta novamente dentro de alguns minutos.',429);
     entry.count++;
@@ -165,6 +194,19 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
     db.prepare('INSERT INTO invites VALUES(?,?,?)').run(digest(raw),userId,Date.now()+3*day);
     return raw;
   }
+  // Apagamento: pedidos do formulário abandonados (24 h) e não importados (90 dias), com os anexos.
+  function cleanup() {
+    const cut=ms=>new Date(Date.now()-ms).toISOString();
+    const old=db.prepare('SELECT id,workshop,files FROM public_requests WHERE (submitted IS NULL AND created<?) OR (imported IS NULL AND submitted IS NOT NULL AND submitted<?)').all(cut(day),cut(90*day));
+    for(const r of old) transaction(()=>{
+      for(const f of JSON.parse(r.files)) db.prepare('DELETE FROM attachments WHERE workshop=? AND id=?').run(r.workshop,f.id);
+      db.prepare('DELETE FROM public_requests WHERE id=?').run(r.id);
+    });
+    db.prepare("UPDATE public_requests SET data='{}' WHERE imported IS NOT NULL AND data!='{}'").run();
+    return old.length;
+  }
+  cleanup();
+  const cleanupTimer=setInterval(cleanup,6*60*60*1000);cleanupTimer.unref?.();
   const server = http.createServer(async (req,res) => {
     res.setHeader('X-Content-Type-Options','nosniff');
     res.setHeader('Referrer-Policy','no-referrer');
@@ -174,7 +216,7 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
       const path = url.pathname;
       if (!path.startsWith('/api/')) {
         requireValue(req.method==='GET' || req.method==='HEAD','Método inválido.',405);
-        const asset = path==='/' ? '/pilot.html' : decodeURIComponent(path);
+        const asset = path==='/' ? '/pilot.html' : /^\/pedido\/[a-f0-9]{24}$/.test(path) ? '/pilot/pedido.html' : decodeURIComponent(path);
         const allowed = /^\/(pilot\.html|app\.js|interpret\.js|style\.css|readers\.mjs|reader-worker\.mjs)$/.test(asset) ||
           /^\/(pilot|vendor|samples)\//.test(asset);
         requireValue(allowed, 'Página não encontrada.',404);
@@ -187,6 +229,51 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
       if (req.method!=='GET') {
         const permitted = origin || `${isHttps(req)?'https':'http'}://${req.headers.host}`;
         requireValue(req.headers.origin===permitted,'Abre a Forja na página de acesso da oficina.',403);
+      }
+      const pub=path.match(/^\/api\/public\/(oficina|pedido)\/([^/]+)(?:\/([a-f0-9]{32})\/(files|submit))?$/);
+      if (pub) {
+        const office=formOffice(pub[2]);
+        if (pub[1]==='oficina' && !pub[3] && req.method==='GET') return reply(res,{name:office.name});
+        requireValue(pub[1]==='pedido','Operação não encontrada.',404);
+        if (!pub[3] && req.method==='POST') {
+          limitPublic(req);
+          const input=await jsonBody(req,32*1024);
+          if (typeof input.website==='string' && input.website.trim()) return reply(res,{id:token().slice(0,32),uploadKey:token()},201);
+          requireValue(input.consent===true,'Confirma que aceitas o tratamento dos dados para receberes o orçamento.');
+          const opt=(v,max)=>v==null||v===''?'':text(v,max);
+          const data={name:text(input.name,100),phone:opt(input.phone,30),email:input.email?emailAddress(input.email):'',
+            type:opt(input.type,100),place:opt(input.place,150),measures:opt(input.measures,2000),description:text(input.description,4000)};
+          requireValue(data.phone || data.email,'Indica um telefone ou um email para a oficina te responder.');
+          requireValue(!data.phone || /^[+\d][\d\s().-]{5,}$/.test(data.phone),'Telefone inválido.');
+          requireValue(db.prepare("SELECT COUNT(*) AS n FROM public_requests WHERE workshop=? AND created>?").get(office.id,new Date(Date.now()-day).toISOString()).n<50,
+            'A oficina recebeu muitos pedidos hoje. Contacta-a diretamente.',429);
+          const id=token().slice(0,32),key=token();
+          db.prepare('INSERT INTO public_requests (id,workshop,key,data,created) VALUES(?,?,?,?,?)').run(id,office.id,digest(key),JSON.stringify(data),time());
+          return reply(res,{id,uploadKey:key},201);
+        }
+        if (pub[4]==='files' && req.method==='PUT') {
+          const row=pendingRequest(office,pub[3],url.searchParams.get('key'));
+          const files=JSON.parse(row.files);
+          requireValue(files.length<6,'Podes juntar até 6 ficheiros.',413);
+          requireValue(safeMime.has(req.headers['content-type']),'Só aceitamos fotos (JPG, PNG, WebP) ou PDF.',415);
+          const bytes=await readBody(req,10*1024*1024);
+          requireValue(bytes.length>0,'O ficheiro está vazio.');
+          requireValue(storageUsed()+bytes.length<=maxStorage,'Não foi possível guardar o ficheiro. Contacta a oficina.',507);
+          const fileId=`pub-${row.id.slice(0,16)}-${files.length+1}`;
+          const name=(url.searchParams.get('name')||'ficheiro').replace(/[\\/\u0000-\u001f]/g,'_').slice(0,180);
+          transaction(()=>{
+            db.prepare('INSERT INTO attachments VALUES(?,?,?,?)').run(office.id,fileId,req.headers['content-type'],bytes);
+            files.push({id:fileId,name,type:req.headers['content-type'],size:bytes.length,created:time()});
+            db.prepare('UPDATE public_requests SET files=? WHERE id=?').run(JSON.stringify(files),row.id);
+          });
+          return reply(res,{ok:true},201);
+        }
+        if (pub[4]==='submit' && req.method==='POST') {
+          const row=pendingRequest(office,pub[3],url.searchParams.get('key'));
+          db.prepare('UPDATE public_requests SET submitted=? WHERE id=?').run(time(),row.id);
+          return reply(res,{ok:true});
+        }
+        throw new HttpError(404,'Operação não encontrada.');
       }
       const auth = sessionLookup.get(digest(cookie(req)),Date.now());
       if (path==='/api/pilot/me' && req.method==='GET') {
@@ -301,6 +388,12 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
                 responses,last});
             }
           }
+          for(const r of db.prepare('SELECT r.*,w.name,w.demo FROM public_requests r JOIN workshops w ON w.id=r.workshop WHERE r.submitted IS NOT NULL AND r.imported IS NULL').all()) {
+            const p=publicProject(r);
+            items.push({workshop:{id:r.workshop,name:r.name,demo:!!r.demo},
+              project:{id:p.id,code:'Formulário',name:p.type||'Pedido pelo formulário',kind:'',priceCheck:'',client:p.client,channel:'Formulário (por importar)',request:p.request.slice(0,6000),created:p.created,fields:{}},
+              files:p.files,responses:sent.filter(x=>x.workshop===r.workshop && x.project===p.id).map(({workshop,project,...x})=>x),last:p.created});
+          }
           items.sort((a,b)=>a.last<b.last?1:-1);
           return reply(res,{items,storage:storageUsed(),maxStorage});
         }
@@ -314,7 +407,8 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
         const respond=path.match(/^\/api\/pilot\/admin\/responses\/([a-f0-9]{64})\/([a-zA-Z0-9_-]{1,100})$/);
         if(respond && req.method==='PUT') {
           const office=workshopLookup.get(respond[1]);
-          requireValue(office && JSON.parse(office.state).projects.some(p=>p.id===respond[2]),'Pedido não encontrado.',404);
+          requireValue(office && (JSON.parse(office.state).projects.some(p=>p.id===respond[2]) ||
+            (respond[2].startsWith('pub-') && db.prepare('SELECT 1 FROM public_requests WHERE workshop=? AND id=? AND submitted IS NOT NULL').get(office.id,respond[2].slice(4)))),'Pedido não encontrado.',404);
           const bytes=await readBody(req,20*1024*1024);
           const note=(url.searchParams.get('note')||'').trim().slice(0,4000);
           requireValue(bytes.length>0 || note,'Junta um ficheiro ou escreve uma nota.');
@@ -340,7 +434,7 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
           }
           const input=await jsonBody(req);
           const latest=workshopLookup.get(office.id),state=JSON.parse(latest.state);
-          state.settings=priceSettings(office.name,input);
+          state.settings={...priceSettings(office.name,input),privacy:state.settings.privacy};
           db.prepare('UPDATE workshops SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(state),office.id);
           return reply(res,{ok:true});
         }
@@ -350,7 +444,9 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
       if(path==='/api/pilot/workspace' && req.method==='GET') {
         const office=workshopLookup.get(auth.workshop);
         db.prepare('UPDATE workshops SET last_use=? WHERE id=?').run(time(),auth.workshop);
-        return reply(res,{state:JSON.parse(office.state),revision:office.revision,demo:!!office.demo});
+        let formToken=office.form_token;
+        if(!formToken) {formToken=token().slice(0,24);db.prepare('UPDATE workshops SET form_token=? WHERE id=?').run(formToken,auth.workshop);}
+        return reply(res,{state:JSON.parse(office.state),revision:office.revision,demo:!!office.demo,formToken});
       }
       if(path==='/api/pilot/workspace' && req.method==='PUT') {
         const input=await jsonBody(req,8*1024*1024);
@@ -375,6 +471,29 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
         state.settings={...state.settings,catalog:settings.catalog};
         db.prepare('UPDATE workshops SET state=?,last_use=? WHERE id=?').run(JSON.stringify(state),time(),office.id);
         return reply(res,{catalog:settings.catalog});
+      }
+      if(path==='/api/pilot/privacy' && req.method==='PUT') {
+        const input=await jsonBody(req,16*1024);
+        requireValue(Array.isArray(input.zones) && input.zones.length<=5,'Podes marcar até 5 zonas.');
+        const zones=input.zones.map(z=>{
+          const v=['x','y','w','h'].map(k=>Number(z?.[k]));
+          requireValue(v.every(n=>Number.isFinite(n) && n>=0 && n<=1) && v[0]+v[2]<=1.0001 && v[1]+v[3]<=1.0001 && v[2]>0 && v[3]>0,'Zona inválida.');
+          return {x:v[0],y:v[1],w:v[2],h:v[3]};
+        });
+        const office=workshopLookup.get(auth.workshop),state=JSON.parse(office.state);
+        state.settings={...state.settings,privacy:{zones,updated:time()}};
+        db.prepare('UPDATE workshops SET state=?,last_use=? WHERE id=?').run(JSON.stringify(state),time(),office.id);
+        return reply(res,{zones});
+      }
+      if(path==='/api/pilot/requests' && req.method==='GET') {
+        return reply(res,db.prepare('SELECT * FROM public_requests WHERE workshop=? AND submitted IS NOT NULL AND imported IS NULL ORDER BY submitted').all(auth.workshop).map(publicProject));
+      }
+      const imported=path.match(/^\/api\/pilot\/requests\/pub-([a-f0-9]{32})\/imported$/);
+      if(imported && req.method==='POST') {
+        const state=JSON.parse(workshopLookup.get(auth.workshop).state);
+        requireValue(state.projects.some(p=>p.id==='pub-'+imported[1]),'Guarda o pedido na oficina antes de o marcar.',409);
+        db.prepare('UPDATE public_requests SET imported=? WHERE id=? AND workshop=?').run(time(),imported[1],auth.workshop);
+        return reply(res,{ok:true});
       }
       if(path==='/api/pilot/feedback' && req.method==='POST') {
         const input=await jsonBody(req);
@@ -426,8 +545,8 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
       return reply(res,{error:'A Forja não conseguiu concluir esta operação.'},500);
     }
   });
-  server.on('close',()=>db.close());
-  return {server,setupToken};
+  server.on('close',()=>{clearInterval(cleanupTimer);db.close();});
+  return {server,setupToken,cleanup};
 }
 
 if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href===import.meta.url) {
