@@ -111,7 +111,7 @@ function pilotPriceCheck(p) {
 let pilotFeedback={rating:null,text:'',sent:false};
 let pilotQuick={rating:null,closed:false};
 // ---------- Leitura com IA ----------
-const pilotAi={pid:null,loading:false,error:'',data:null,off:new Set(),applied:{},prices:{},answers:{}};
+const pilotAi={pid:null,loading:false,error:'',data:null,off:new Set(),applied:{},prices:{},answers:{},fromClient:{},asks:[]};
 // Custo proposto pelo catálogo para uma linha lida do pedido (só se a unidade bater certo).
 function pilotAiMatch(l) {
   const best=pilotBestMatch(l.desc);
@@ -121,10 +121,97 @@ function pilotAiMatch(l) {
 }
 async function pilotAiLoad(p) {
   if(pilotAi.pid===p.id && (pilotAi.data || pilotAi.loading))return;
-  Object.assign(pilotAi,{pid:p.id,loading:false,error:'',data:null,off:new Set(),prices:{},answers:{}});
+  Object.assign(pilotAi,{pid:p.id,loading:false,error:'',data:null,off:new Set(),prices:{},answers:{},fromClient:{},asks:[]});
   try {pilotAi.data=await window.forjaPilot.ai.get(p.id);pilotAi.error=pilotAi.data.error||'';} catch(e) {pilotAi.error=e.message;}
   if(pilotAi.data?.pending)pilotAiPoll(p.id);
+  await pilotAskRefresh(p.id,false);
   if(pilotAi.pid===p.id && view==='detail')render();
+}
+// ---------- Perguntar ao cliente ----------
+// As respostas do cliente entram na linha da pergunta com o mesmo texto (sem apagar o que a oficina já escreveu).
+function pilotAskMerge(notify) {
+  const r=pilotAi.data?.turns?.at(-1)?.reading;
+  if(!r)return 0;
+  let n=0;
+  for(const ask of pilotAi.asks) {
+    if(!ask.answers)continue;
+    ask.questions.forEach((q,k)=>{
+      const a=(ask.answers[k]||'').trim(),i=r.missing.findIndex(m=>m.question===q);
+      if(a && i>=0 && !(pilotAi.answers[i]||'').trim()){pilotAi.answers[i]=a;pilotAi.fromClient[i]=true;n++;}
+    });
+  }
+  if(n && notify)toast(n===1?'O cliente respondeu a uma pergunta.':`O cliente respondeu a ${n} perguntas.`);
+  return n;
+}
+async function pilotAskRefresh(pid,notify) {
+  try {
+    const list=await window.forjaPilot.ask.list(pid);
+    if(pilotAi.pid!==pid)return 0;
+    pilotAi.asks=list;
+    return pilotAskMerge(notify);
+  } catch {return 0;}
+}
+setInterval(async()=>{
+  if(view!=='detail' || !pilotAi.pid || pilotAi.pid!==selected || !pilotAi.asks.some(a=>!a.answers))return;
+  if(await pilotAskRefresh(pilotAi.pid,true) && !document.querySelector('.pv-overlay') && !document.activeElement?.matches?.('input,textarea'))render();
+},20000);
+function pilotAskStatus(r) {
+  const open=pilotAi.asks.filter(a=>!a.answers && a.questions.some(q=>r.missing.some(m=>m.question===q)));
+  return open.length?`<p class="smalltext muted">Perguntas enviadas ao cliente, à espera de resposta. As respostas aparecem aqui sozinhas.</p>`:'';
+}
+function pilotAskDialog(p) {
+  const r=pilotAi.data.turns.at(-1).reading;
+  const contact=String(p.contact||'');
+  const phone=(contact.match(/\+?\d[\d\s.-]{7,}\d/)||[''])[0];
+  const mail=(contact.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/)||[''])[0];
+  const company=state.settings.company||'a oficina';
+  const wrap=document.createElement('div');
+  wrap.className='pv-overlay';wrap.setAttribute('role','dialog');wrap.setAttribute('aria-modal','true');
+  wrap.innerHTML=`<div class="pv-box"><h2>Perguntar ao cliente</h2>
+    <p class="smalltext muted">A Forja prepara a mensagem com um link para o cliente responder. Envias tu, do WhatsApp ou do email da oficina: a Forja não acede a nenhum dos dois.</p>
+    <fieldset class="pilot-ask-qs"><legend>Perguntas a enviar</legend>${r.missing.map((q,i)=>`<label><input type="checkbox" data-ask-q="${i}" ${(pilotAi.answers[i]||'').trim()?'':'checked'}> ${esc(q.question)}</label>`).join('')}</fieldset>
+    <div class="pilot-ask-contact"><label>Telemóvel do cliente<input class="field" id="ask-phone" type="tel" value="${esc(phone)}" placeholder="912 345 678"></label>
+      <label>Email do cliente<input class="field" id="ask-mail" type="email" value="${esc(mail)}" placeholder="cliente@exemplo.pt"></label></div>
+    <label>Mensagem<textarea class="field" id="ask-text" rows="7"></textarea></label>
+    <p class="smalltext muted" id="ask-msg" role="status"></p>
+    <div class="pv-actions"><button type="button" class="primary" data-ask-send="wa">Abrir no WhatsApp</button><button type="button" data-ask-send="mail">Abrir no email</button><button type="button" data-ask-send="copy">Copiar mensagem</button><button type="button" class="ghost" data-ask-close>Fechar</button></div></div>`;
+  document.body.append(wrap);
+  const text=wrap.querySelector('#ask-text'),msg=wrap.querySelector('#ask-msg');
+  const chosen=()=>[...wrap.querySelectorAll('[data-ask-q]:checked')].map(c=>r.missing[Number(c.dataset.askQ)].question);
+  let edited=false;
+  const build=()=>{if(edited)return;const qs=chosen();text.value=`Olá${p.client?' '+p.client.split(' ')[0]:''}, fala ${company}.\nPara fecharmos o orçamento${p.name?' ('+p.name.split(' · ')[0]+')':''}, precisamos de saber:\n${qs.map((q,i)=>`${i+1}. ${q}`).join('\n')}\n\nPode responder aqui, é rápido: [link]\n\nObrigado!`;};
+  build();
+  text.addEventListener('input',()=>{edited=true;});
+  wrap.addEventListener('change',e=>{if(e.target.matches('[data-ask-q]'))build();});
+  let created=null;
+  wrap.addEventListener('click',async e=>{
+    const b=e.target.closest('[data-ask-send],[data-ask-close]');
+    if(!b)return;
+    if(b.hasAttribute('data-ask-close')){wrap.remove();render();return;}
+    const qs=chosen();
+    if(!qs.length){msg.textContent='Escolhe pelo menos uma pergunta.';return;}
+    const kind=b.dataset.askSend;
+    // Abre já a janela do WhatsApp para o browser não a bloquear; o endereço entra depois de criar o link.
+    const win=kind==='wa'?window.open('about:blank','_blank'):null;
+    try {
+      const key=qs.join('\n');
+      if(!created || created.key!==key){const out=await window.forjaPilot.ask.create(p.id,qs);created={key,url:location.origin+out.url};pilotAi.asks.push({id:out.id,questions:qs,answers:null,created:new Date().toISOString()});}
+      const body=text.value.includes('[link]')?text.value.replace('[link]',created.url):text.value+'\n\n'+created.url;
+      if(kind==='copy'){try{await navigator.clipboard.writeText(body);msg.textContent='Mensagem copiada. Cola-a onde costumas falar com o cliente.';}catch{text.value=body;text.select();msg.textContent='Mensagem selecionada: copia com Ctrl+C.';}return;}
+      if(kind==='wa'){
+        let digits=wrap.querySelector('#ask-phone').value.replace(/\D/g,'');
+        if(/^[29]\d{8}$/.test(digits))digits='351'+digits;
+        const url=(digits?`https://wa.me/${digits}`:'https://wa.me/')+'?text='+encodeURIComponent(body);
+        if(win)win.location.href=url;else window.open(url,'_blank');
+        msg.textContent='Abriu o WhatsApp com a mensagem pronta. Revê e envia.';
+      } else {
+        const to=wrap.querySelector('#ask-mail').value.trim();
+        location.href=`mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent('Orçamento: algumas perguntas')}&body=${encodeURIComponent(body)}`;
+        msg.textContent='Abriu o email com a mensagem pronta. Revê e envia.';
+      }
+      event(p,'Perguntas enviadas ao cliente ('+qs.length+')','Oficina');persist();
+    } catch(err){win?.close();msg.textContent=err.message;}
+  });
 }
 // A análise corre no servidor (até 10 minutos): pergunta a cada 4 segundos e mostra o tempo.
 let pilotAiTimer=null;
@@ -139,7 +226,7 @@ function pilotAiPoll(pid) {
       if(!d.pending){
         const changed=d.turns.length!==(pilotAi.data?.turns?.length||0);
         pilotAi.data=d;pilotAi.loading=false;pilotAi.error=d.error||'';
-        if(changed){pilotAi.off=new Set();pilotAi.prices={};pilotAi.answers={};toast('O orçamento proposto está pronto. Revê e aplica.');}
+        if(changed){pilotAi.off=new Set();pilotAi.prices={};pilotAi.answers={};pilotAi.fromClient={};pilotAskMerge(false);toast('O orçamento proposto está pronto. Revê e aplica.');}
         if(view==='detail')render();
         return;
       }
@@ -184,8 +271,8 @@ function pilotAiHtml(p) {
     ${r.reply?`<p class="pilot-ai-reply">${esc(r.reply)}</p>`:''}
     <p>${esc(r.summary)}</p>${pieces}
     ${r.lines.length?`<h3>Linhas propostas</h3><p class="smalltext muted">Escolhe as que entram no orçamento. O custo vem do catálogo e podes alterá-lo. A barra mostra quanto o artigo do catálogo bate com a linha; sem correspondência, o custo fica por indicar.</p><ul class="pilot-ai-lines">${lines}</ul>`:''}
-    ${r.missing.length?`<h3>Falta saber</h3><p class="smalltext muted">Responde ao que já souberes, na própria linha, e atualiza o orçamento.</p><ul class="pilot-ai-questions">${r.missing.map((q,i)=>`<li><div class="pilot-ai-qtext"><span>${esc(q.question)}</span><small class="muted">${esc(q.why)}</small></div><input class="field" data-ai-answer="${i}" maxlength="300" value="${esc(pilotAi.answers[i]||'')}" placeholder="Resposta" aria-label="Resposta: ${esc(q.question)}"></li>`).join('')}</ul>
-      <div class="pilot-ai-actions"><button type="button" class="primary" data-ai-answers ${d.remaining?'':'disabled'}>Responder e atualizar orçamento</button></div>`:''}
+    ${r.missing.length?`<h3>Falta saber</h3><p class="smalltext muted">Responde ao que já souberes, na própria linha, e atualiza o orçamento.</p><ul class="pilot-ai-questions">${r.missing.map((q,i)=>`<li><div class="pilot-ai-qtext"><span>${esc(q.question)}</span><small class="muted">${esc(q.why)}</small></div><div class="pilot-ai-answer"><input class="field" data-ai-answer="${i}" maxlength="600" value="${esc(pilotAi.answers[i]||'')}" placeholder="Resposta" aria-label="Resposta: ${esc(q.question)}">${pilotAi.fromClient[i]?'<small class="pilot-ai-client">Respondido pelo cliente</small>':''}</div></li>`).join('')}</ul>
+      <div class="pilot-ai-actions"><button type="button" class="primary" data-ai-answers ${d.remaining?'':'disabled'}>Responder e atualizar orçamento</button><button type="button" data-ai-askclient>Perguntar ao cliente</button></div>${pilotAskStatus(r)}`:''}
     ${list('Fora do âmbito / a confirmar',[...r.scope.excluded.map(x=>'Excluído: '+x),...r.scope.purchase.map(x=>'Compra: '+x),...r.scope.otherTrade.map(x=>'Outro ofício: '+x)])}
     ${r.calcs.length?`<details><summary>Contas (${r.calcs.length})</summary><ul>${r.calcs.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></details>`:''}
     ${list('Avisos',r.warnings)}${err}
@@ -245,11 +332,12 @@ document.addEventListener('change',ev=>{
   if(box.checked)pilotAi.off.delete(i);else pilotAi.off.add(i);
 });
 document.addEventListener('click',ev=>{
-  const t=ev.target.closest('[data-ai-run],[data-ai-apply],[data-ai-ask],[data-ai-restart],[data-ai-answers]');
+  const t=ev.target.closest('[data-ai-run],[data-ai-apply],[data-ai-ask],[data-ai-restart],[data-ai-answers],[data-ai-askclient]');
   if(!t || view!=='detail')return;
   const p=project();
   if(t.hasAttribute('data-ai-run'))pilotAiRun(p,{});
   else if(t.hasAttribute('data-ai-restart'))pilotAiRun(p,{restart:true});
+  else if(t.hasAttribute('data-ai-askclient'))pilotAskDialog(p);
   else if(t.hasAttribute('data-ai-answers')) {
     const r=pilotAi.data.turns.at(-1).reading;
     const lines=r.missing.map((q,i)=>[q.question,(pilotAi.answers[i]||'').trim()]).filter(([,a])=>a);

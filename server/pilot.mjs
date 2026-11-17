@@ -131,7 +131,8 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
   db.exec(`CREATE TABLE IF NOT EXISTS public_requests(id TEXT PRIMARY KEY,workshop TEXT REFERENCES workshops(id),key TEXT NOT NULL,data TEXT NOT NULL,files TEXT NOT NULL DEFAULT '[]',created TEXT NOT NULL,submitted TEXT,imported TEXT);
     CREATE UNIQUE INDEX IF NOT EXISTS workshops_form ON workshops(form_token);
     CREATE TABLE IF NOT EXISTS ai_threads(workshop TEXT REFERENCES workshops(id),project TEXT NOT NULL,turns TEXT NOT NULL,updated TEXT NOT NULL,PRIMARY KEY(workshop,project));
-    CREATE TABLE IF NOT EXISTS ai_calls(workshop TEXT,created TEXT NOT NULL,input INTEGER,output INTEGER,ok INTEGER NOT NULL);`);
+    CREATE TABLE IF NOT EXISTS ai_calls(workshop TEXT,created TEXT NOT NULL,input INTEGER,output INTEGER,ok INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS client_questions(id TEXT PRIMARY KEY,workshop TEXT REFERENCES workshops(id),project TEXT NOT NULL,questions TEXT NOT NULL,answers TEXT,created TEXT NOT NULL,answered TEXT);`);
   const aiJobs=new Map();
   const aiRemaining=office=>{
     const since=new Date(Date.now()-day).toISOString();
@@ -219,6 +220,7 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
       db.prepare('DELETE FROM public_requests WHERE id=?').run(r.id);
     });
     db.prepare("UPDATE public_requests SET data='{}' WHERE imported IS NOT NULL AND data!='{}'").run();
+    db.prepare('DELETE FROM client_questions WHERE created<?').run(cut(30*day));
     return old.length;
   }
   cleanup();
@@ -232,7 +234,7 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
       const path = url.pathname;
       if (!path.startsWith('/api/')) {
         requireValue(req.method==='GET' || req.method==='HEAD','Método inválido.',405);
-        const asset = path==='/' ? '/pilot.html' : /^\/pedido\/[a-f0-9]{24}$/.test(path) ? '/pilot/pedido.html' : decodeURIComponent(path);
+        const asset = path==='/' ? '/pilot.html' : /^\/pedido\/[a-f0-9]{24}$/.test(path) ? '/pilot/pedido.html' : /^\/responder\/[a-f0-9]{32}$/.test(path) ? '/pilot/responder.html' : decodeURIComponent(path);
         const allowed = /^\/(pilot\.html|app\.js|interpret\.js|style\.css|readers\.mjs|reader-worker\.mjs)$/.test(asset) ||
           /^\/(pilot|vendor|samples)\//.test(asset);
         requireValue(allowed, 'Página não encontrada.',404);
@@ -245,6 +247,22 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
       if (req.method!=='GET') {
         const permitted = origin || `${isHttps(req)?'https':'http'}://${req.headers.host}`;
         requireValue(req.headers.origin===permitted,'Abre a Forja na página de acesso da oficina.',403);
+      }
+      const ask=path.match(/^\/api\/public\/perguntas\/([a-f0-9]{32})$/);
+      if (ask) {
+        const row=db.prepare('SELECT q.*,w.name FROM client_questions q JOIN workshops w ON w.id=q.workshop WHERE q.id=?').get(ask[1]);
+        requireValue(row,'Este link já não é válido. Contacta a oficina.',404);
+        if (req.method==='GET') return reply(res,{name:row.name,questions:JSON.parse(row.questions),answers:row.answers?JSON.parse(row.answers):null});
+        requireValue(req.method==='POST','Operação não encontrada.',404);
+        limitPublic(req,20);
+        const input=await jsonBody(req,16*1024);
+        if (typeof input.website==='string' && input.website.trim()) return reply(res,{ok:true});
+        const questions=JSON.parse(row.questions);
+        requireValue(Array.isArray(input.answers) && input.answers.length===questions.length,'Respostas inválidas.');
+        const answers=input.answers.map(a=>typeof a==='string'?a.trim().slice(0,600):'');
+        requireValue(answers.some(Boolean),'Responde a pelo menos uma pergunta.');
+        db.prepare('UPDATE client_questions SET answers=?,answered=? WHERE id=?').run(JSON.stringify(answers),time(),row.id);
+        return reply(res,{ok:true});
       }
       const pub=path.match(/^\/api\/public\/(oficina|pedido)\/([^/]+)(?:\/([a-f0-9]{32})\/(files|submit))?$/);
       if (pub) {
@@ -558,6 +576,22 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
           }
         })();
         return reply(res,{pending:true,started,remaining:aiRemaining(office),turns:aiPublic(turns)},202);
+      }
+      const asks=path.match(/^\/api\/pilot\/ask\/([a-zA-Z0-9_-]{1,100})$/);
+      if(asks && req.method==='POST') {
+        const input=await jsonBody(req,16*1024);
+        requireValue(Array.isArray(input.questions) && input.questions.length>0 && input.questions.length<=12,'Escolhe entre 1 e 12 perguntas.');
+        const questions=input.questions.map(q=>text(q,400));
+        const office=workshopLookup.get(auth.workshop);
+        requireValue(JSON.parse(office.state).projects.some(p=>p.id===asks[1]),'Guarda o pedido antes de perguntar ao cliente.',404);
+        requireValue(db.prepare('SELECT COUNT(*) AS n FROM client_questions WHERE workshop=? AND created>?').get(office.id,new Date(Date.now()-day).toISOString()).n<100,'Limite diário de perguntas atingido.',429);
+        const id=token().slice(0,32);
+        db.prepare('INSERT INTO client_questions (id,workshop,project,questions,created) VALUES(?,?,?,?,?)').run(id,office.id,asks[1],JSON.stringify(questions),time());
+        return reply(res,{id,url:'/responder/'+id},201);
+      }
+      if(asks && req.method==='GET') {
+        return reply(res,db.prepare('SELECT id,questions,answers,created,answered FROM client_questions WHERE workshop=? AND project=? ORDER BY created').all(auth.workshop,asks[1])
+          .map(r=>({id:r.id,questions:JSON.parse(r.questions),answers:r.answers?JSON.parse(r.answers):null,created:r.created,answered:r.answered})));
       }
       if(path==='/api/pilot/requests' && req.method==='GET') {
         return reply(res,db.prepare('SELECT * FROM public_requests WHERE workshop=? AND submitted IS NOT NULL AND imported IS NULL ORDER BY submitted').all(auth.workshop).map(publicProject));

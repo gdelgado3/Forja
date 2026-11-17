@@ -191,3 +191,11 @@
 .pilot-ai-fresh { animation:pilotfade .6s ease; }
 @keyframes pilotfade { from { opacity:.2; transform:translateY(3px); } to { opacity:1; transform:none; } }
 @media (prefers-reduced-motion: reduce) { .pilot-ai-fresh { animation:none; } }
+.pilot-ai-answer { display:grid; gap:2px; }
+.pilot-ai-client { color:#1f5a2b; font-size:11px; font-weight:600; }
+.pilot-ask-qs { border:1px solid #dfe5dc; border-radius:10px; padding:10px 12px; margin:10px 0; display:grid; gap:6px; }
+.pilot-ask-qs legend { font-weight:600; padding:0 4px; }
+.pilot-ask-qs label { display:flex; gap:8px; align-items:flex-start; font-weight:400; }
+.pilot-ask-contact { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+.pilot-ask-contact label, .pv-box > label { display:grid; gap:4px; font-weight:600; font-size:14px; }
+@media(max-width:560px){ .pilot-ask-contact { grid-template-columns:1fr; } }

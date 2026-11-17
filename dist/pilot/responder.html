@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Perguntas sobre o seu pedido</title>
+<style>
+:root{--ink:#1d241f;--muted:#5f6a62;--line:#d9ddd5;--accent:#214d3b;--bg:#f5f4ef}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:620px;margin:0 auto;padding:24px 16px 48px}h1{font-size:23px;margin:0 0 6px}p{margin:0 0 14px}.muted{color:var(--muted);font-size:14px}
+form{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;display:grid;gap:16px}
+label{display:grid;gap:8px;font-weight:600}label span.n{color:var(--accent)}
+textarea{font:inherit;font-weight:400;padding:11px 12px;border:1px solid var(--line);border-radius:9px;min-height:64px;resize:vertical;width:100%}
+textarea:focus{outline:2px solid #9cc5ad;border-color:#9cc5ad}
+button{font:inherit;font-weight:700;padding:14px 16px;border-radius:10px;border:0;background:var(--accent);color:#fff;cursor:pointer}button:disabled{opacity:.6}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}.msg{padding:12px;border-radius:9px;background:#fff1e6;border:1px solid #e6b38a}.ok{background:#eaf4ee;border-color:#9cc5ad}
+</style>
+</head>
+<body>
+<main>
+<h1 id="title">Perguntas sobre o seu pedido</h1>
+<p class="muted" id="intro">A carregar…</p>
+<form id="form" hidden novalidate>
+  <div id="questions" style="display:grid;gap:16px"></div>
+  <div class="hp" aria-hidden="true"><label>Website<input name="website" tabindex="-1" autocomplete="off"></label></div>
+  <p class="msg" id="msg" role="alert" hidden></p>
+  <button type="submit">Enviar respostas</button>
+</form>
+</main>
+<script type="module">
+const token=location.pathname.split('/').pop();
+const $=s=>document.querySelector(s),form=$('#form'),msg=$('#msg');
+const say=(t,ok)=>{msg.hidden=!t;msg.textContent=t;msg.classList.toggle('ok',!!ok);};
+async function call(options={}){
+  const r=await fetch('/api/public/perguntas/'+token,{cache:'no-store',...options});
+  const data=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(data.error||'Não foi possível enviar. Tente de novo.');
+  return data;
+}
+let count=0;
+try{
+  const d=await call();
+  count=d.questions.length;
+  $('#title').textContent=d.name+': perguntas sobre o seu pedido';document.title=$('#title').textContent;
+  $('#intro').textContent='Para fechar o orçamento, a oficina precisa destas informações. Responda ao que souber; pode deixar em branco o que não souber.';
+  const box=$('#questions');
+  d.questions.forEach((q,i)=>{
+    const l=document.createElement('label');
+    const t=document.createElement('span');t.innerHTML='<span class="n">'+(i+1)+'.</span> ';t.append(q);
+    const a=document.createElement('textarea');a.name='a'+i;a.maxLength=600;a.value=d.answers?.[i]||'';
+    l.append(t,a);box.append(l);
+  });
+  if(d.answers)say('Já enviou respostas. Pode corrigi-las e enviar outra vez.',true);
+  form.hidden=false;
+}catch(e){$('#intro').textContent=e.message;}
+form.addEventListener('submit',async ev=>{
+  ev.preventDefault();
+  const answers=Array.from({length:count},(_,i)=>form.elements['a'+i].value.trim());
+  if(!answers.some(Boolean))return say('Responda a pelo menos uma pergunta.');
+  const b=form.querySelector('button');b.disabled=true;say('A enviar…',true);
+  try{
+    await call({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({answers,website:form.elements.website.value})});
+    form.innerHTML='<h2>Respostas enviadas</h2><p>Obrigado. A oficina já as recebeu e vai continuar o orçamento.</p>';
+  }catch(e){say(e.message);b.disabled=false;}
+});
+</script>
+</body>
+</html>

@@ -306,6 +306,7 @@ async function workshop() {
     markImported:id=>post('/requests/'+encodeURIComponent(id)+'/imported',{}),
     ai:{get:id=>api('/ai/'+encodeURIComponent(id)),run:(id,body)=>post('/ai/'+encodeURIComponent(id),body)},
     deleteFile:id=>api('/files/'+encodeURIComponent(id),{method:'DELETE'}),
+    ask:{create:(id,questions)=>post('/ask/'+encodeURIComponent(id),{questions}),list:id=>api('/ask/'+encodeURIComponent(id))},
     async getFile(id) {return (await request('/files/'+encodeURIComponent(id))).blob();},
     responses:[],
     sendFeedback:data=>post('/feedback',data),
