@@ -1,6 +1,8 @@
 'use strict';
 function renderPilotWorkspace() {
   if(view==='detail'&&!project())view='projects';
+  // O separador antigo de leitura de ficheiros já não existe no piloto: tudo vai para o pedido.
+  if(tab==='interpretar')tab='pedido';
   const isDetail=view==='detail';
   const projectsHtml=()=>{
     const filtered=state.projects.filter(p=>(p.name+' '+p.client+' '+p.code).toLowerCase().includes(query.toLowerCase()));
