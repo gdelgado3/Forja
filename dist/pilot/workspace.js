@@ -515,12 +515,12 @@ document.addEventListener('click',async ev=>{
       <h3>Artigos</h3>
       <label class="sr-only" for="pc-text">Artigos</label><textarea class="field pilot-catalog-text" id="pc-text" rows="12" placeholder="Chapa inox 2 mm;m²;78&#10;Tubo aço 40×40×2;m;4,50&#10;Montagem em obra;h;35">${esc(rows)}</textarea>
       <label>Ou importar a tabela de preços dos fornecedores (Excel .xlsx ou CSV)<input class="field" id="pc-file" type="file" accept=".xlsx,.csv,.txt,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></label>
+      <p class="smalltext muted">Sem Excel à mão? <button type="button" class="small" data-pilot-sample-catalog>Experimentar com um catálogo de exemplo</button> <a href="/pilot/catalogo-exemplo.xlsx" download>descarregar o Excel de exemplo</a> (preços inventados)</p>
       <label>Ou ler orçamentos antigos (PDF com texto ou .txt)<input class="field" id="pc-quotes" type="file" multiple accept=".pdf,.txt,application/pdf,text/plain"></label>
       <p class="smalltext muted">Unidades: un, m, m², m³, kg ou h. Preços por barra são convertidos para metro quando o nome diz o comprimento. Separa com ponto e vírgula ou tabulação. Até 2000 artigos.</p>
       <p id="pc-status" class="pilot-message" role="alert" hidden></p>
       <div class="pilot-start"><button type="button" class="primary" data-pilot-catalog-save>Guardar preços e catálogo</button><button type="button" data-action="close">Cancelar</button></div></div>`);
-    document.querySelector('#pc-file').addEventListener('change',async e=>{
-      const f=e.target.files[0];if(!f)return;
+    const importSheet=async f=>{
       const status=document.querySelector('#pc-status'),say=t=>{status.hidden=!t;status.textContent=t;};
       if(!/\.xlsx$/i.test(f.name)){document.querySelector('#pc-text').value=(await f.text()).slice(0,400000);return;}
       say('A ler o Excel…');
@@ -536,6 +536,11 @@ document.addEventListener('click',async ev=>{
         box.value=[...have.values()].join('\n');
         say(`${items.length} artigo(s) lidos do Excel. ${notes.join(' ')} Os que não tinham data ficaram com a data do ficheiro (${fileDate.split('-').reverse().join('/')}). Revê e carrega em Guardar.`);
       } catch(err) {say('Não foi possível ler este Excel: '+err.message);}
+    };
+    document.querySelector('#pc-file').addEventListener('change',e=>{if(e.target.files[0])importSheet(e.target.files[0]);});
+    document.querySelector('[data-pilot-sample-catalog]').addEventListener('click',async()=>{
+      const blob=await (await fetch('/pilot/catalogo-exemplo.xlsx')).blob();
+      importSheet(new File([blob],'catalogo-exemplo.xlsx',{type:blob.type,lastModified:Date.now()}));
     });
     document.querySelector('#pc-quotes').addEventListener('change',e=>pilotImportQuotes([...e.target.files]));
     return;
