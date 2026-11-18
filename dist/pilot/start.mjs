@@ -30,6 +30,7 @@ function access(mode) {
     <form data-pilot-form="${mode}">
       ${mode==='setup'?'<label>Código inicial<input class="field" name="code" type="password" required autocomplete="off"></label>':''}
       ${email}<label>Palavra-passe<input class="field" name="password" type="password" required ${mode==='login'?'autocomplete="current-password"':'autocomplete="new-password" minlength="12"'} maxlength="128"></label>
+      <label class="pilot-show"><input type="checkbox" data-pilot-show> Mostrar palavra-passe</label>
       ${mode==='login'?'':'<p class="muted smalltext">Mínimo de 12 caracteres.</p>'}
       <button class="primary" type="submit">${titles[mode]}</button>
     </form></section></main>`;
@@ -45,6 +46,7 @@ function landing() {
     <section class="card card-pad"><h2>Já tenho conta</h2>
     <form data-pilot-form="login"><label>Email<input class="field" name="email" type="email" autocomplete="username" required></label>
     <label>Palavra-passe<input class="field" name="password" type="password" required autocomplete="current-password" maxlength="128"></label>
+    <label class="pilot-show"><input type="checkbox" data-pilot-show> Mostrar palavra-passe</label>
     <button type="submit">Entrar</button></form></section></main>`;
 }
 const bytesText = n => n>=1048576?(n/1048576).toFixed(1).replace('.',',')+' MB':Math.max(1,Math.round(n/1024))+' kB';
@@ -138,6 +140,7 @@ root.addEventListener('drop',event=>{
   if(event.dataTransfer.files[0])sendResponse(zone,event.dataTransfer.files[0]);
 });
 root.addEventListener('change',event=>{
+  if(event.target.matches?.('[data-pilot-show]')){const f=event.target.closest('form').querySelector('input[name=password]');f.type=event.target.checked?'text':'password';return;}
   const zone=event.target.closest?.('.pilot-drop');
   if(zone && event.target.type==='file' && event.target.files[0]){sendResponse(zone,event.target.files[0]);event.target.value='';}
 });

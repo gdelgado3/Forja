@@ -206,3 +206,5 @@
 @media(max-width:620px){ .pilot-prices { grid-template-columns:1fr 1fr; } }
 .back-button { display:inline-flex; align-items:center; gap:6px; margin:0 0 12px; padding:8px 14px; border:1px solid #c9cec4; border-radius:999px; background:#fff; font:inherit; font-size:14px; font-weight:600; cursor:pointer; }
 .back-button:hover { background:#f2f6f2; }
+.pilot-show { display:flex !important; flex-direction:row !important; align-items:center; gap:8px; font-weight:400 !important; font-size:14px; }
+.pilot-show input { width:18px; height:18px; }
