@@ -57,7 +57,8 @@
         <option value="">Selecione um tipo</option><option value="portão">Portão</option>
         <option value="guarda/corrimão">Guarda/corrimão</option><option value="varanda/janela">Varanda/janela</option>
         <option value="estrutura">Estrutura</option><option value="outro">Outro</option>
-      </select></div>
+      </select>
+      <div id="type-other-box" hidden><label for="type-other">Qual?</label><input id="type-other" name="type-other" maxlength="80" placeholder="Ex.: escada de caracol, pérgola, grade"></div></div>
       <div><label for="place">Localidade</label><input id="place" name="place" autocomplete="address-level2"></div>
     </div>
     <div><label for="measures">Medidas</label><textarea id="measures" name="measures" rows="2"></textarea></div>
@@ -207,6 +208,12 @@ async function send(event, token) {
       if (!form.reportValidity()) return;
       const data = Object.fromEntries(['name','phone','email','type','place','measures','description','website']
         .map(id => [id,fieldValue(id)]));
+      // "Outro": envia o que o cliente escreveu como tipo de trabalho.
+      if (data.type === 'outro') {
+        const other = byId('type-other').value.trim();
+        if (!other) { showError('Escreva que tipo de trabalho precisa.'); byId('type-other').focus(); return; }
+        data.type = 'Outro: ' + other.slice(0, 80);
+      }
       if (!data.phone && !data.email) {
         showError('Indique um telefone ou um email.');
         byId('phone').focus();
@@ -276,6 +283,12 @@ privacyLink.addEventListener('click', event => {
 });
 privacy.addEventListener('toggle', () => privacyLink.setAttribute('aria-expanded', String(privacy.open)));
 init();
+
+byId('type').addEventListener('change', () => {
+  const other = byId('type').value === 'outro';
+  byId('type-other-box').hidden = !other;
+  if (other) byId('type-other').focus();
+});
 </script>
 </body>
 </html>
