@@ -226,3 +226,5 @@
 .pilot-ai-scope li { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:6px 12px; padding:8px 0; border-bottom:1px solid #eceee8; }
 .pilot-ai-scope li > span:first-child { flex:1 1 320px; }
 .pilot-ai-scope-btns { display:flex; gap:6px; }
+.pilot-notes { display:grid; gap:4px; font-weight:600; font-size:14px; margin:10px 0; }
+.pilot-notes textarea { font-weight:400; }

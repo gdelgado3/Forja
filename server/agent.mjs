@@ -157,6 +157,7 @@ export function firstMessage(project, files, catalog, houseRules = '') {
     'Pedido do cliente (contactos já retirados):', str(project.request || '', 12000) || '(sem texto; ver anexos)',
     fields.length ? '\nDados já anotados pela oficina:\n' + fields.join('\n') : '',
     catalog.length ? '\nArtigos do catálogo da oficina (só nomes e unidades):\n' + catalog.slice(0, 200).map(c => `- ${str(c.label, 180)} (${c.unit})`).join('\n') : '',
+    project.workshopNotes ? '\nNotas da oficina sobre este pedido (a oficina sabe isto; usa como "dito"):\n' + str(project.workshopNotes, 3000) : '',
     houseRules ? '\nComo esta oficina trabalha (regras da casa, escritas pela oficina):\n' + str(houseRules, 3000) : '',
     measuresText(project),
     skipped.length ? '\nAnexos não enviados: ' + skipped.join('; ') : '',

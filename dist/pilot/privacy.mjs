@@ -61,6 +61,7 @@ export function redactState(state) {
   for (const p of state.projects || []) {
     clean(p, 'request');
     clean(p, 'checkNote');
+    clean(p, 'workshopNotes');
     for (const x of p.extraFields || []) clean(x, 'value');
     for (const m of p.memory || []) clean(m, 'text');
   }
