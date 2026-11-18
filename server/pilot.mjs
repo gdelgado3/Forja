@@ -470,10 +470,18 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
           requireValue(db.prepare('DELETE FROM responses WHERE id=?').run(removal[1]).changes===1,'Resposta não encontrada.',404);
           return reply(res,{ok:true});
         }
-        const match=path.match(/^\/api\/pilot\/admin\/workshops\/([a-f0-9]{64})\/(prices|invite)$/);
+        const match=path.match(/^\/api\/pilot\/admin\/workshops\/([a-f0-9]{64})\/(prices|invite|email)$/);
         if(match && req.method==='POST') {
           const office=workshopLookup.get(match[1]);
           requireValue(office,'Oficina não encontrada.',404);
+          if(match[2]==='email') {
+            // Corrigir o email de acesso (por exemplo, uma gralha ao criar a oficina). Termina as sessões abertas.
+            const input=await jsonBody(req,2048),email=emailAddress(input.email);
+            const user=db.prepare('SELECT id FROM users WHERE workshop=?').get(office.id);
+            requireValue(!db.prepare('SELECT 1 FROM users WHERE email=? AND id!=?').get(email,user.id),'Já existe uma conta com esse email.',409);
+            transaction(()=>{db.prepare('UPDATE users SET email=? WHERE id=?').run(email,user.id);db.prepare('DELETE FROM sessions WHERE user_id=?').run(user.id);});
+            return reply(res,{email});
+          }
           if(match[2]==='invite') {
             const user=db.prepare('SELECT id FROM users WHERE workshop=?').get(office.id);
             return reply(res,{invite:transaction(()=>issueInvite(user.id))});
