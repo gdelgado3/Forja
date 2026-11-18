@@ -381,6 +381,11 @@ function pilotToolsHtml() {
       <div class="pilot-link-row"><input class="field" id="pilot-form-link" readonly value="${esc(link)}" aria-label="Link do formulário"><button type="button" class="small" data-pilot-form-copy>Copiar</button></div>
       <p class="smalltext muted" id="pilot-form-copied" role="status"></p></div>`:''}
     <div><h2>Preços da oficina</h2><p class="smalltext muted">Valores usados nos orçamentos novos. Os orçamentos já feitos não mudam.</p>
+      <details class="pilot-why"><summary>Para que serve cada um?</summary><ul>
+        <li><b>Custo por hora:</b> quanto custa à oficina uma hora de trabalho (salário, encargos, máquinas, energia). Entra nas linhas em horas: corte, soldadura, montagem.</li>
+        <li><b>Acréscimo sobre custo:</b> o que se soma ao custo de materiais e horas para chegar ao preço. Não é a margem sobre a venda: 25 % de acréscimo sobre o custo dá uma margem de 20 % sobre o preço de venda (100 € de custo → 125 € de venda → 25 € são 20 % de 125 €). Cada orçamento pode ter outro acréscimo, conforme a obra e o cliente.</li>
+        <li><b>IVA:</b> a taxa somada no fim ao total. Normalmente 23 %; algumas obras de habitação têm taxa reduzida, confirma com o contabilista.</li>
+        <li>Os preços dos <b>materiais</b> vêm do catálogo (os do fornecedor, com a data da cotação), não daqui.</li></ul></details>
       <form class="pilot-prices" data-pilot-prices><label>Custo por hora (€)<input class="field" name="hour" type="number" min="0" max="100000" step="0.01" required value="${esc(state.settings.hour)}"></label>
       <label>Acréscimo sobre custo (%)<input class="field" name="markup" type="number" min="0" max="1000" step="0.01" required value="${esc(state.settings.markup)}"></label>
       <label>IVA (%)<input class="field" name="vat" type="number" min="0" max="100" step="0.01" required value="${esc(state.settings.vat)}"></label>

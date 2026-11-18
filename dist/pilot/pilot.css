@@ -208,3 +208,7 @@
 .back-button:hover { background:#f2f6f2; }
 .pilot-show { display:flex !important; flex-direction:row !important; align-items:center; gap:8px; font-weight:400 !important; font-size:14px; }
 .pilot-show input { width:18px; height:18px; }
+.pilot-why { margin:6px 0 10px; font-size:13px; }
+.pilot-why summary { cursor:pointer; color:#214d3b; font-weight:600; }
+.pilot-why ul { margin:6px 0 0; padding-left:18px; }
+.pilot-why li { margin:4px 0; }

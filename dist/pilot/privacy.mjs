@@ -317,6 +317,17 @@ export async function prepareUpload(blob, zonesInput, onStatus = () => {}) {
   return { kind: 'other', original: blob, pages: [], auto: 0, review: false };
 }
 
+// Quantos dados foram tapados, contados por linha da folha (uma morada partida em 3 palavras conta como 1).
+function countLines(pages) {
+  let n = 0;
+  for (const p of pages) {
+    const rows = [];
+    for (const b of p.boxes.filter(b => b.auto)) { const c = b.y + b.h / 2; if (!rows.some(r => Math.abs(r - c) < b.h * 0.6)) rows.push(c); }
+    n += rows.length;
+  }
+  return n;
+}
+
 function paintBoxes(ctx, W, H, boxes, preview) {
   for (const b of boxes) {
     ctx.fillStyle = '#000';
@@ -374,7 +385,7 @@ export function reviewUpload(result, fileName) {
   return new Promise(resolve => {
     const total = result.pages.reduce((n, p) => n + p.boxes.length, 0);
     const box = overlay(`<h2>Antes de enviar: ${escapeHtml(fileName || 'ficheiro')}</h2>
-      <p>${result.auto ? `A Forja encontrou e tapou <b>${result.auto}</b> dado(s) pessoal(is) (a laranja).` : 'A Forja não encontrou dados pessoais escritos de forma legível.'} Confirma que nome, morada, contactos e NIF do cliente estão tapados.</p>
+      <p>${result.auto ? `A Forja encontrou e tapou dados pessoais em <b>${countLines(result.pages)}</b> linha(s) da folha (a laranja).` : 'A Forja não encontrou dados pessoais escritos de forma legível.'} Confirma que nome, morada, contactos e NIF do cliente estão tapados.</p>
       <p class="smalltext muted">Arrasta sobre a folha para tapar mais. Toca num retângulo para o retirar.</p>
       <div class="pv-previews"></div>
       <p class="pv-count" role="status"></p>
@@ -425,11 +436,12 @@ export function editZones(current, save) {
   let zones = validZones(current);
   const box = overlay(`<h2>Proteger dados dos clientes</h2>
     <p>Abre uma folha de medidas ou um pedido típico e arrasta um retângulo por cima de cada zona com dados do cliente (nome, morada, contactos, NIF). A Forja tapa essas zonas em todas as imagens e PDFs, no teu aparelho, antes de enviar.</p>
-    <label class="pv-file">Folha de exemplo (imagem ou PDF)<input type="file" accept="image/jpeg,image/png,image/webp,application/pdf"></label>
+    <label class="pv-file">A tua folha de medidas (imagem ou PDF)<input type="file" accept="image/jpeg,image/png,image/webp,application/pdf"></label>
+    <p class="smalltext muted">Não tens uma à mão? <button type="button" class="small" data-z="sample">Usar uma folha de exemplo</button> (dados inventados)</p>
     <div class="pv-stage" hidden><canvas class="pv-canvas pv-draw"></canvas></div>
     <p class="pv-count"></p>
     <p class="pv-msg" role="status"></p>
-    <div class="pv-actions"><button type="button" class="primary" data-z="save">Guardar zonas</button><button type="button" data-z="clear">Limpar zonas</button><button type="button" data-z="close">Fechar</button></div>`);
+    <div class="pv-actions"><button type="button" class="primary" data-z="save">Guardar zonas</button><button type="button" data-z="test" hidden>Testar a proteção nesta folha</button><button type="button" data-z="clear">Limpar zonas</button><button type="button" data-z="close">Fechar</button></div>`);
   const canvas = box.querySelector('.pv-draw'), stage = box.querySelector('.pv-stage');
   const count = box.querySelector('.pv-count'), msg = box.querySelector('.pv-msg');
   let base = null, drag = null;
@@ -444,16 +456,17 @@ export function editZones(current, save) {
   const updateCount = () => { count.textContent = zones.length ? `${zones.length} zona(s) marcada(s), de ${MAX_ZONES} possíveis.` : 'Ainda não há zonas marcadas.'; };
   updateCount();
   const point = e => { const r = canvas.getBoundingClientRect(); return { x: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), y: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)) }; };
-  box.querySelector('input[type=file]').addEventListener('change', async e => {
-    const file = e.target.files[0];
-    if (!file) return;
+  let sheet = null;
+  const openSheet = async file => {
     msg.textContent = 'A abrir…';
     try {
       base = file.type === 'application/pdf' ? (await renderPage(await openPdf(file), 1, 1200)).canvas : await imageToCanvas(file, 1600);
-      canvas.width = base.width; canvas.height = base.height;
-      stage.hidden = false; msg.textContent = 'Arrasta para marcar uma zona.'; draw();
+      canvas.width = base.width; canvas.height = base.height; sheet = file;
+      stage.hidden = false; box.querySelector('[data-z="test"]').hidden = false;
+      msg.textContent = 'Arrasta para marcar uma zona. Depois carrega em "Testar a proteção" para ver o que é tapado ao enviar.'; draw();
     } catch { msg.textContent = 'Não foi possível abrir este ficheiro.'; }
-  });
+  };
+  box.querySelector('input[type=file]').addEventListener('change', e => { if (e.target.files[0]) openSheet(e.target.files[0]); });
   canvas.addEventListener('pointerdown', e => {
     if (zones.length >= MAX_ZONES) { msg.textContent = `Podes marcar até ${MAX_ZONES} zonas.`; return; }
     canvas.setPointerCapture(e.pointerId);
@@ -479,6 +492,27 @@ export function editZones(current, save) {
     if (!b) return;
     if (b.dataset.z === 'close') { box.remove(); return; }
     if (b.dataset.z === 'clear') { zones = []; updateCount(); draw(); return; }
+    if (b.dataset.z === 'sample') {
+      const blob = await (await fetch('/pilot/folha-exemplo.png')).blob();
+      openSheet(new File([blob], 'folha-exemplo.png', { type: 'image/png' }));
+      return;
+    }
+    if (b.dataset.z === 'test') {
+      // Mostra o que seria tapado ao enviar esta folha (zonas + deteção automática). Não envia nada.
+      if (!sheet) return;
+      b.disabled = true;
+      const status = busy('A procurar dados pessoais na folha…');
+      let result;
+      try { result = await prepareUpload(sheet, zones, t => status.set(t)); } catch (err) { msg.textContent = err.message; }
+      status.close(); b.disabled = false;
+      if (!result) return;
+      box.style.display = 'none';
+      result.review = true;
+      await reviewUpload(result, sheet.name + ' (teste: nada é enviado)');
+      box.style.display = '';
+      msg.textContent = 'Teste feito: nada foi enviado. Se faltou tapar alguma coisa, marca uma zona por cima e guarda.';
+      return;
+    }
     b.disabled = true; msg.textContent = 'A guardar…';
     try { await save(zones); msg.textContent = 'Zonas guardadas. Vão ser tapadas em todos os ficheiros que enviares.'; }
     catch (err) { msg.textContent = err.message; }
