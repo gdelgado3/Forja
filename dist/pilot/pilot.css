@@ -215,3 +215,5 @@
 .pilot-general { border:1px solid #dfe5dc; border-radius:10px; padding:12px 14px; margin-bottom:12px; background:#fafbf8; }
 .pilot-general h3, .pilot-drawing > h3 { margin:0 0 8px; font-size:15px; }
 .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+.pilot-extra > summary { cursor:pointer; list-style:revert; display:flex; flex-wrap:wrap; gap:4px 10px; align-items:baseline; }
+.pilot-extra[open] > summary { margin-bottom:12px; }
