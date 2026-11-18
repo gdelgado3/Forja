@@ -212,3 +212,6 @@
 .pilot-why summary { cursor:pointer; color:#214d3b; font-weight:600; }
 .pilot-why ul { margin:6px 0 0; padding-left:18px; }
 .pilot-why li { margin:4px 0; }
+.pilot-general { border:1px solid #dfe5dc; border-radius:10px; padding:12px 14px; margin-bottom:12px; background:#fafbf8; }
+.pilot-general h3, .pilot-drawing > h3 { margin:0 0 8px; font-size:15px; }
+.sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }

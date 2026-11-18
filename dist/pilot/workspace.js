@@ -11,7 +11,7 @@ function renderPilotWorkspace() {
     <div class="pilot-menu">
       <button type="button" class="pilot-menu-card pilot-menu-main" data-action="new">${icon('<path d="M12 5v14M5 12h14"/>')}<strong>Novo orçamento</strong><small>Cola o pedido ou junta o desenho e monta o rascunho.</small></button>
       <button type="button" class="pilot-menu-card" data-pilot-history>${icon('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>')}<strong>Histórico</strong><small>${state.projects.length?state.projects.length+' orçamento(s) guardado(s) nesta oficina.':'Os teus orçamentos ficam guardados aqui.'}</small></button>
-      <button type="button" class="pilot-menu-card" data-pilot-catalog>${icon('<path d="M4 6h16M4 12h16M4 18h10"/>')}<strong>Catálogo da empresa</strong><small>${(state.settings.catalog||[]).length?(state.settings.catalog.length+' artigo(s). Os custos do orçamento vêm daqui.'):'Mete os teus artigos e custos. A Forja preenche o orçamento com eles.'}</small></button>
+      <button type="button" class="pilot-menu-card" data-pilot-catalog>${icon('<path d="M4 6h16M4 12h16M4 18h10"/>')}<strong>Preços e catálogo</strong><small>${String(state.settings.hour).replace('.',',')} €/h · acréscimo ${String(state.settings.markup).replace('.',',')} % · ${(state.settings.catalog||[]).length} artigo(s). Os custos do orçamento vêm daqui.</small></button>
       ${window.forjaPilot.demo?`<button type="button" class="pilot-menu-card" data-pilot-feedback-go>${icon('<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>')}<strong>Dar feedback</strong><small>Diz-nos o que achaste e o que mudavas. Demora um minuto.</small></button>`:
       `<button type="button" class="pilot-menu-card" data-pilot-drawing>${icon('<path d="M3 17l14-14 4 4L7 21H3z"/><path d="M14 6l4 4M5 15l2 2M8 12l2 2M11 9l2 2"/>')}<strong>Pedir desenho técnico</strong><small>${drawings?drawings+' pedido(s) de desenho enviado(s).':'Envia a folha de medidas e as fotos e recebe o alçado cotado.'}</small></button>`}
     </div>
@@ -113,10 +113,12 @@ let pilotQuick={rating:null,closed:false};
 // ---------- Leitura com IA ----------
 const pilotAi={pid:null,loading:false,error:'',data:null,off:new Set(),applied:{},prices:{},answers:{},fromClient:{},asks:[]};
 // Custo proposto pelo catálogo para uma linha lida do pedido (só se a unidade bater certo).
+// Linhas em horas sem artigo de horas no catálogo usam o custo por hora de partida da oficina.
+const pilotHourly=()=>({price:Number(state.settings.hour)||0,score:0,label:'',applied:true,hourly:true});
 function pilotAiMatch(l) {
   const best=pilotBestMatch(l.desc);
-  if(!best)return {price:null,score:0,label:'',applied:false};
-  if(best.score<60 || best.row.unit!==l.unit)return {price:null,score:best.row.unit!==l.unit?Math.min(best.score,59):best.score,label:best.row.label,applied:false};
+  if(!best)return l.unit==='h'?pilotHourly():{price:null,score:0,label:'',applied:false};
+  if(best.score<60 || best.row.unit!==l.unit)return l.unit==='h'?pilotHourly():{price:null,score:best.row.unit!==l.unit?Math.min(best.score,59):best.score,label:best.row.label,applied:false};
   return {price:best.row.price,score:best.score,label:best.row.label,applied:true};
 }
 async function pilotAiLoad(p) {
@@ -259,7 +261,7 @@ function pilotAiHtml(p) {
   const lines=r.lines.map((l,i)=>{
     const m=pilotAiMatch(l),edited=pilotAi.prices[i];
     const price=edited!==undefined?edited:m.price;
-    const conf=edited!==undefined?{manual:true,label:m.label,score:m.score,applied:false}:{manual:false,label:m.label,score:m.score,applied:m.applied};
+    const conf=edited!==undefined?{manual:true,label:m.label,score:m.score,applied:false}:{manual:false,label:m.label,score:m.score,applied:m.applied,hourly:m.hourly};
     return `<li><label><input type="checkbox" data-ai-line="${i}" ${pilotAi.off.has(i)?'':'checked'}>
     <span class="grow"><strong>${esc(l.desc)}</strong> · ${String(l.qty).replace('.',',')} ${esc(l.unit)} ${badge(l.state)}<small>${esc(l.basis)}</small></span></label>
     <div class="pilot-ai-price"><input type="number" min="0" step="0.01" data-ai-price="${i}" value="${price===null?'':price}" placeholder="Custo" aria-label="Custo unitário de ${esc(l.desc)}"><span>€/${esc(l.unit)}</span>${pilotConfidence({match:conf})}</div></li>`;}).join('');
@@ -290,7 +292,7 @@ function pilotAiApply(p) {
     const line={id:uid(),desc:x.desc,qty:Math.round(x.qty*1000)/1000,unit:x.unit,price:0,source:`Leitura do pedido (${x.state}) · ${x.basis}`.slice(0,400)};
     const m=pilotAiMatch(x),edited=pilotAi.prices[i];
     if(edited!==undefined && edited!==null){line.price=edited;line.match={label:m.label,score:m.score,manual:true,applied:false};}
-    else {line.price=m.price??0;line.match={label:m.label,score:m.score,manual:false,applied:m.applied};}
+    else {line.price=m.price??0;line.match={label:m.label,score:m.score,manual:false,applied:m.applied,...(m.hourly?{hourly:true}:{})};}
     if(line.match.applied||line.match.manual)priced++;
     p.lines.push(line);added++;
   });
@@ -380,16 +382,6 @@ function pilotToolsHtml() {
     ${link?`<div><h2>Link para os teus clientes</h2><p class="smalltext muted">Manda este link por WhatsApp ou email. O cliente preenche o pedido e junta fotos; o pedido aparece aqui sozinho.</p>
       <div class="pilot-link-row"><input class="field" id="pilot-form-link" readonly value="${esc(link)}" aria-label="Link do formulário"><button type="button" class="small" data-pilot-form-copy>Copiar</button></div>
       <p class="smalltext muted" id="pilot-form-copied" role="status"></p></div>`:''}
-    <div><h2>Preços da oficina</h2><p class="smalltext muted">Valores usados nos orçamentos novos. Os orçamentos já feitos não mudam.</p>
-      <details class="pilot-why"><summary>Para que serve cada um?</summary><ul>
-        <li><b>Custo por hora:</b> quanto custa à oficina uma hora de trabalho (salário, encargos, máquinas, energia). Entra nas linhas em horas: corte, soldadura, montagem.</li>
-        <li><b>Acréscimo sobre custo:</b> o que se soma ao custo de materiais e horas para chegar ao preço. Não é a margem sobre a venda: 25 % de acréscimo sobre o custo dá uma margem de 20 % sobre o preço de venda (100 € de custo → 125 € de venda → 25 € são 20 % de 125 €). Cada orçamento pode ter outro acréscimo, conforme a obra e o cliente.</li>
-        <li><b>IVA:</b> a taxa somada no fim ao total. Normalmente 23 %; algumas obras de habitação têm taxa reduzida, confirma com o contabilista.</li>
-        <li>Os preços dos <b>materiais</b> vêm do catálogo (os do fornecedor, com a data da cotação), não daqui.</li></ul></details>
-      <form class="pilot-prices" data-pilot-prices><label>Custo por hora (€)<input class="field" name="hour" type="number" min="0" max="100000" step="0.01" required value="${esc(state.settings.hour)}"></label>
-      <label>Acréscimo sobre custo (%)<input class="field" name="markup" type="number" min="0" max="1000" step="0.01" required value="${esc(state.settings.markup)}"></label>
-      <label>IVA (%)<input class="field" name="vat" type="number" min="0" max="100" step="0.01" required value="${esc(state.settings.vat)}"></label>
-      <button type="submit" class="small">Guardar preços</button></form></div>
     <div><h2>Proteger dados dos clientes</h2><p class="smalltext muted">${zones?`${zones} zona(s) tapada(s) em todas as fotos e PDFs, no teu aparelho, antes de enviar.`:'Marca onde ficam o nome, a morada e o NIF nas tuas folhas. A Forja tapa essas zonas antes de enviar.'} Telefones, emails, NIF e códigos postais escritos no texto são sempre tapados.</p>
       <button type="button" class="small" data-pilot-privacy>${zones?'Alterar zonas':'Marcar zonas'}</button></div></section>`;
 }
@@ -470,14 +462,25 @@ document.addEventListener('click',async ev=>{
   if(target.hasAttribute('data-pilot-feedback-go')) {document.querySelector('.pilot-feedback')?.scrollIntoView({behavior:'smooth'});document.querySelector('#pilot-feedback-text')?.focus({preventScroll:true});return;}
   if(target.hasAttribute('data-pilot-catalog')) {
     const rows=(state.settings.catalog||[]).map(x=>[x.label,x.unit,String(x.price).replace('.',','),x.date?x.date.split('-').reverse().join('/'):'',x.supplier||''].join(';').replace(/;+$/,'')).join('\n');
-    modal(`${modalHead('Catálogo da empresa','Um artigo por linha: nome; unidade; custo; data da cotação; fornecedor (os dois últimos são opcionais). A Forja usa estes custos no orçamento, diz a confiança de cada correspondência e avisa quando a cotação está velha.')}
+    modal(`${modalHead('Preços e catálogo da empresa','Valores gerais em cima. Artigos em baixo, um por linha: nome; unidade; custo; data da cotação; fornecedor (os dois últimos são opcionais). A Forja usa estes custos no orçamento, diz a confiança de cada correspondência e avisa quando a cotação está velha.')}
       <div class="pilot-drawing">
-      <label>Artigos<textarea class="field pilot-catalog-text" id="pc-text" rows="12" placeholder="Chapa inox 2 mm;m²;78&#10;Tubo aço 40×40×2;m;4,50&#10;Montagem em obra;h;35">${esc(rows)}</textarea></label>
+      <section class="pilot-general"><h3>Valores gerais</h3>
+      <div class="pilot-prices"><label>Custo por hora de partida (€)<input class="field" id="pc-hour" type="number" min="0" max="100000" step="0.01" value="${esc(state.settings.hour)}"></label>
+      <label>Acréscimo sobre custo (%)<input class="field" id="pc-markup" type="number" min="0" max="1000" step="0.01" value="${esc(state.settings.markup)}"></label>
+      <label>IVA (%)<input class="field" id="pc-vat" type="number" min="0" max="100" step="0.01" value="${esc(state.settings.vat)}"></label></div>
+      <details class="pilot-why"><summary>Para que serve cada um?</summary><ul>
+        <li><b>Custo por hora de partida:</b> quanto custa à oficina uma hora de trabalho (salário, encargos, máquinas, energia). Usado nas linhas em horas quando o catálogo não tem um artigo em horas mais parecido (por exemplo "Soldadura TIG; h; 45").</li>
+        <li><b>Acréscimo sobre custo:</b> o que se soma ao custo de materiais e horas para chegar ao preço. Não é a margem sobre a venda: 25 % de acréscimo sobre o custo dá uma margem de 20 % sobre o preço de venda (100 € de custo → 125 € de venda → 25 € são 20 % de 125 €). Cada orçamento pode ter outro acréscimo, conforme a obra e o cliente.</li>
+        <li><b>IVA:</b> a taxa somada no fim ao total. Normalmente 23 %; algumas obras de habitação têm taxa reduzida, confirma com o contabilista.</li>
+        <li>Os <b>artigos</b> abaixo têm o custo de cada material ou serviço, com a data da cotação e o fornecedor.</li></ul></details>
+      <p class="smalltext muted">Valem para os orçamentos novos; os já feitos não mudam.</p></section>
+      <h3>Artigos</h3>
+      <label class="sr-only" for="pc-text">Artigos</label><textarea class="field pilot-catalog-text" id="pc-text" rows="12" placeholder="Chapa inox 2 mm;m²;78&#10;Tubo aço 40×40×2;m;4,50&#10;Montagem em obra;h;35">${esc(rows)}</textarea>
       <label>Ou importar a tabela de preços dos fornecedores (Excel .xlsx ou CSV)<input class="field" id="pc-file" type="file" accept=".xlsx,.csv,.txt,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></label>
       <label>Ou ler orçamentos antigos (PDF com texto ou .txt)<input class="field" id="pc-quotes" type="file" multiple accept=".pdf,.txt,application/pdf,text/plain"></label>
       <p class="smalltext muted">Unidades: un, m, m², m³, kg ou h. Preços por barra são convertidos para metro quando o nome diz o comprimento. Separa com ponto e vírgula ou tabulação. Até 2000 artigos.</p>
       <p id="pc-status" class="pilot-message" role="alert" hidden></p>
-      <div class="pilot-start"><button type="button" class="primary" data-pilot-catalog-save>Guardar catálogo</button><button type="button" data-action="close">Cancelar</button></div></div>`);
+      <div class="pilot-start"><button type="button" class="primary" data-pilot-catalog-save>Guardar preços e catálogo</button><button type="button" data-action="close">Cancelar</button></div></div>`);
     document.querySelector('#pc-file').addEventListener('change',async e=>{
       const f=e.target.files[0];if(!f)return;
       const status=document.querySelector('#pc-status'),say=t=>{status.hidden=!t;status.textContent=t;};
@@ -503,10 +506,15 @@ document.addEventListener('click',async ev=>{
     const status=document.querySelector('#pc-status'),say=t=>{status.hidden=!t;status.textContent=t;};
     let catalog;
     try {catalog=pilotParseCatalog(document.querySelector('#pc-text').value);} catch(e) {return say(e.message);}
+    const num=id=>Number(String(document.querySelector(id).value).replace(',','.'));
+    const prices={hour:num('#pc-hour'),markup:num('#pc-markup'),vat:num('#pc-vat')};
+    if(Object.values(prices).some(v=>!Number.isFinite(v)||v<0))return say('Confirma os valores gerais: custo por hora, acréscimo e IVA.');
     target.disabled=true;say('');
     try {
+      const out=await window.forjaPilot.savePrices(prices);
+      Object.assign(state.settings,{hour:out.hour,markup:out.markup,vat:out.vat});
       state.settings.catalog=await window.forjaPilot.saveCatalog(catalog);
-      closeModal();render();toast(`Catálogo guardado: ${state.settings.catalog.length} artigo(s).`);
+      closeModal();render();toast(`Catálogo guardado: ${state.settings.catalog.length} artigo(s), ${String(out.hour).replace('.',',')} €/h, acréscimo ${String(out.markup).replace('.',',')} %, IVA ${String(out.vat).replace('.',',')} %.`);
     } catch(e) {say(e.message);target.disabled=false;}
     return;
   }
@@ -621,6 +629,8 @@ function pilotBestMatch(desc) {
 }
 function pilotAutoPrice(line,{withUnit=false,keepSource=false}={}) {
   const best=pilotBestMatch(line.desc);
+  const hourly=()=>{line.price=Number(state.settings.hour)||0;if(!keepSource)line.source='Custo por hora da oficina';line.match={label:'',score:0,manual:false,applied:true,hourly:true};return 'applied';};
+  if((!best || best.score<60 || (best.row.unit!==line.unit && !withUnit)) && line.unit==='h')return hourly();
   if(!best){line.match={label:'',score:0,manual:false,applied:false};return 'none';}
   if(best.score<60){
     // Se o custo vinha de outro artigo do catálogo, deixa de valer: fica por indicar.
@@ -636,6 +646,7 @@ function pilotAutoPrice(line,{withUnit=false,keepSource=false}={}) {
 function pilotConfidence(l) {
   const m=l.match;
   if(!m)return '<span class="pilot-conf pilot-conf-none" title="Linha sem correspondência calculada">—</span>';
+  if(m.hourly && !m.manual)return `<span class="pilot-conf pilot-conf-mid" title="Sem artigo de horas no catálogo: usa o custo por hora de partida da oficina">Custo/hora da oficina</span>`;
   if(m.manual)return `<span class="pilot-conf pilot-conf-manual" title="Custo alterado à mão${m.label?' · catálogo: '+esc(m.label):''}">Manual</span>`;
   if(!m.applied)return `<span class="pilot-conf pilot-conf-low" title="${m.label?'Melhor artigo: '+esc(m.label):'Catálogo vazio'}"><span class="pilot-bar" aria-hidden="true"><span style="width:${m.score||0}%"></span></span>Sem corresp.${m.label?' · '+m.score+'%':''}</span>`;
   const level=m.score>=85?'high':'mid';
