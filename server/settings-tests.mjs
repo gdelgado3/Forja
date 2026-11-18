@@ -1,0 +1,24 @@
+import assert from 'node:assert/strict';
+import { once } from 'node:events';
+import { createPilotServer } from './pilot.mjs';
+const code='codigo-inicial-de-teste-0123456789';
+const {server}=await createPilotServer({database:':memory:',setupCode:code});
+server.listen(0,'127.0.0.1');await once(server,'listening');
+const base='http://127.0.0.1:'+server.address().port;
+async function call(path,{method='GET',cookie,json}={}){const h={Origin:base};if(cookie)h.Cookie=cookie;if(json)h['Content-Type']='application/json';
+  const r=await fetch(base+'/api/pilot'+path,{method,headers:h,body:json?JSON.stringify(json):undefined});const set=r.headers.get('set-cookie');return {status:r.status,cookie:set?set.split(';')[0]:cookie,data:await r.json().catch(()=>null)};}
+const admin=await call('/setup',{method:'POST',json:{code,email:'a@b.pt',password:'palavra-passe-longa'}});
+const made=await call('/admin/workshops',{method:'POST',cookie:admin.cookie,json:{name:'Oficina Teste',email:'o@t.pt'}});
+assert.equal(made.status,201,JSON.stringify(made.data));
+const acc=await call('/activate',{method:'POST',json:{invite:made.data.invite,password:'outra-palavra-longa'}});
+const ck=acc.cookie;assert.ok(ck,'convite aceite: '+acc.status+' '+JSON.stringify(acc.data));
+const ws=await call('/workspace',{cookie:ck});
+assert.deepEqual([ws.data.state.settings.hour,ws.data.state.settings.markup,ws.data.state.settings.vat],[35,25,23]);
+assert.equal((await call('/settings',{method:'PUT',cookie:ck,json:{hour:-1,markup:20,vat:23}})).status,400);
+await call('/catalog',{method:'PUT',cookie:ck,json:{catalog:[{label:'Tubo',unit:'m',price:4,date:'2026-11-01',supplier:'A'}]}});
+const put=await call('/settings',{method:'PUT',cookie:ck,json:{hour:42.5,markup:30,vat:23}});
+assert.equal(put.status,200);
+const after=(await call('/workspace',{cookie:ck})).data.state.settings;
+assert.deepEqual([after.hour,after.markup,after.vat],[42.5,30,23]);
+assert.deepEqual(after.catalog,[{label:'Tubo',unit:'m',price:4,date:'2026-11-01',supplier:'A'}],'catálogo e datas ficam');
+server.close();console.log('PASS: oficina criada só com nome e email; a oficina muda os seus preços sem perder o catálogo.');

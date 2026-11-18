@@ -367,9 +367,24 @@ function pilotToolsHtml() {
     ${link?`<div><h2>Link para os teus clientes</h2><p class="smalltext muted">Manda este link por WhatsApp ou email. O cliente preenche o pedido e junta fotos; o pedido aparece aqui sozinho.</p>
       <div class="pilot-link-row"><input class="field" id="pilot-form-link" readonly value="${esc(link)}" aria-label="Link do formulário"><button type="button" class="small" data-pilot-form-copy>Copiar</button></div>
       <p class="smalltext muted" id="pilot-form-copied" role="status"></p></div>`:''}
+    <div><h2>Preços da oficina</h2><p class="smalltext muted">Valores usados nos orçamentos novos. Os orçamentos já feitos não mudam.</p>
+      <form class="pilot-prices" data-pilot-prices><label>Custo por hora (€)<input class="field" name="hour" type="number" min="0" max="100000" step="0.01" required value="${esc(state.settings.hour)}"></label>
+      <label>Acréscimo sobre custo (%)<input class="field" name="markup" type="number" min="0" max="1000" step="0.01" required value="${esc(state.settings.markup)}"></label>
+      <label>IVA (%)<input class="field" name="vat" type="number" min="0" max="100" step="0.01" required value="${esc(state.settings.vat)}"></label>
+      <button type="submit" class="small">Guardar preços</button></form></div>
     <div><h2>Proteger dados dos clientes</h2><p class="smalltext muted">${zones?`${zones} zona(s) tapada(s) em todas as fotos e PDFs, no teu aparelho, antes de enviar.`:'Marca onde ficam o nome, a morada e o NIF nas tuas folhas. A Forja tapa essas zonas antes de enviar.'} Telefones, emails, NIF e códigos postais escritos no texto são sempre tapados.</p>
       <button type="button" class="small" data-pilot-privacy>${zones?'Alterar zonas':'Marcar zonas'}</button></div></section>`;
 }
+document.addEventListener('submit',async ev=>{
+  const f=ev.target.closest?.('[data-pilot-prices]');
+  if(!f)return;
+  ev.preventDefault();
+  const d=new FormData(f),v=k=>Number(String(d.get(k)).replace(',','.'));
+  const b=f.querySelector('button');b.disabled=true;
+  try{const out=await window.forjaPilot.savePrices({hour:v('hour'),markup:v('markup'),vat:v('vat')});Object.assign(state.settings,{hour:out.hour,markup:out.markup,vat:out.vat});toast('Preços da oficina guardados.');}
+  catch(e){toast(e.message);}
+  b.disabled=false;
+});
 window.importPilotRequests=async list=>{
   let added=0;
   for(const r of list) {

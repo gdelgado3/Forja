@@ -398,7 +398,7 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
         }
         if(path==='/api/pilot/admin/workshops' && req.method==='POST') {
           const input=await jsonBody(req),name=text(input.name,100),email=emailAddress(input.email);
-          const id=token(),userId=token(),settings=priceSettings(name,input.settings);
+          const id=token(),userId=token(),settings=priceSettings(name,input.settings ?? {hour:35,markup:25,vat:23,catalog:[]});
           requireValue(!db.prepare('SELECT 1 FROM users WHERE email=?').get(email),'Já existe uma conta com esse email.',409);
           const invite=transaction(()=>{
             db.prepare('INSERT INTO workshops (id,name,state) VALUES(?,?,?)').run(id,name,JSON.stringify({schema:1,projects:[],settings}));
@@ -509,6 +509,15 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
           db.prepare('INSERT INTO responses VALUES(?,?,?,NULL,NULL,NULL,?,?)').run(token().slice(0,32),auth.workshop,'exemplo',
             'Rascunho de exemplo pronto: 3 prateleiras em L, 1,04 m² de chapa inox de 2 mm. Falta saber a espessura e a fixação à parede. Vê o separador 3. Orçamento.',time());
         return reply(res,{revision:office.revision+1});
+      }
+      if(path==='/api/pilot/settings' && req.method==='PUT') {
+        // A própria oficina muda o custo por hora, o acréscimo e o IVA; catálogo e zonas ficam como estão.
+        const input=await jsonBody(req,4*1024);
+        const office=workshopLookup.get(auth.workshop),state=JSON.parse(office.state);
+        const next=priceSettings(office.name,{hour:input.hour,markup:input.markup,vat:input.vat,catalog:[]});
+        state.settings={...state.settings,hour:next.hour,markup:next.markup,vat:next.vat};
+        db.prepare('UPDATE workshops SET state=?,last_use=? WHERE id=?').run(JSON.stringify(state),time(),office.id);
+        return reply(res,{settings:state.settings});
       }
       if(path==='/api/pilot/catalog' && req.method==='PUT') {
         const input=await jsonBody(req,512*1024);

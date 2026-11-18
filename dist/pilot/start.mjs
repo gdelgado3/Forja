@@ -177,7 +177,8 @@ async function admin(link='') {
     <section class="card table-scroll"><table class="project-list"><thead><tr><th>Oficina</th><th>Última utilização</th><th>Pedidos</th><th>Rascunhos</th><th>Orçamentos guardados</th><th>Aceites</th><th>Ações</th></tr></thead><tbody>${rows}</tbody></table>${rows?'':'<p class="empty">Cria a primeira oficina para começar.</p>'}</section>
     <section class="card card-pad pilot-create"><h2>Adicionar oficina</h2><form data-pilot-form="workshop">
       <div class="field-grid"><label>Nome da oficina<input class="field" name="name" required maxlength="100"></label><label>Email de acesso<input class="field" name="email" type="email" required></label></div>
-      ${priceInputs()}<button type="submit" class="primary">Criar oficina e convite</button></form></section>
+      <p class="smalltext muted">Custo por hora, acréscimo, IVA e catálogo ficam com valores de partida (35 €/h, 25 %, 23 %) e a própria oficina muda-os no seu menu.</p>
+      <button type="submit" class="primary">Criar oficina e convite</button></form></section>
     <section id="pilot-edit-prices" class="card card-pad" hidden></section></main>`;
 }
 function inviteLink(raw) {return location.origin+'/#convite='+encodeURIComponent(raw);}
@@ -195,7 +196,7 @@ root.addEventListener('submit',async event=>{
   try {
     const values=new FormData(form);
     if(mode==='workshop') {
-      const result=await post('/admin/workshops',{name:values.get('name'),email:values.get('email'),settings:readPrices(values)});
+      const result=await post('/admin/workshops',{name:values.get('name'),email:values.get('email')});
       await admin(inviteLink(result.invite));
     } else if(mode==='prices') {
       await post('/admin/workshops/'+form.dataset.id+'/prices',readPrices(values));
@@ -313,7 +314,8 @@ async function workshop() {
     async getFile(id) {return (await request('/files/'+encodeURIComponent(id))).blob();},
     responses:[],
     sendFeedback:data=>post('/feedback',data),
-    saveCatalog:async catalog=>(await api('/catalog',{method:'PUT',json:{catalog}})).catalog
+    saveCatalog:async catalog=>(await api('/catalog',{method:'PUT',json:{catalog}})).catalog,
+    savePrices:async prices=>(await api('/settings',{method:'PUT',json:prices})).settings
   };
   async function loadResponses() {
     try {
