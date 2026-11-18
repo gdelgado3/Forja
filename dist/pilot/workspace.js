@@ -229,6 +229,8 @@ function pilotAiPoll(pid) {
         const changed=d.turns.length!==(pilotAi.data?.turns?.length||0);
         pilotAi.data=d;pilotAi.loading=false;pilotAi.error=d.error||'';
         if(changed){pilotAi.off=new Set();pilotAi.prices={};pilotAi.answers={};pilotAi.fromClient={};pilotAskMerge(false);toast('O orçamento proposto está pronto. Revê e aplica.');}
+        // Acabou: salta para o separador Orçamento, com a proposta no topo.
+        if(changed && view==='detail' && selected===pid){tab='orcamento';render();requestAnimationFrame(()=>document.querySelector('#pilot-ai')?.scrollIntoView({behavior:'smooth',block:'start'}));return;}
         if(view==='detail')render();
         return;
       }
@@ -473,7 +475,8 @@ document.addEventListener('click',async ev=>{
         <li><b>Acréscimo sobre custo:</b> o que se soma ao custo de materiais e horas para chegar ao preço. Não é a margem sobre a venda: 25 % de acréscimo sobre o custo dá uma margem de 20 % sobre o preço de venda (100 € de custo → 125 € de venda → 25 € são 20 % de 125 €). Cada orçamento pode ter outro acréscimo, conforme a obra e o cliente.</li>
         <li><b>IVA:</b> a taxa somada no fim ao total. Normalmente 23 %; algumas obras de habitação têm taxa reduzida, confirma com o contabilista.</li>
         <li>Os <b>artigos</b> abaixo têm o custo de cada material ou serviço, com a data da cotação e o fornecedor.</li></ul></details>
-      <p class="smalltext muted">Valem para os orçamentos novos; os já feitos não mudam.</p></section>
+      <label class="pilot-rules">Como a oficina trabalha<textarea class="field" id="pc-rules" rows="4" maxlength="3000" placeholder="O que assumem quando o cliente não diz. Ex.: usamos chapa de 3 mm salvo indicação; inox 304 por defeito, 316 no exterior junto ao mar; montagem incluída até 30 km; ferro de exterior sempre galvanizado e lacado.">${esc(state.settings.houseRules||'')}</textarea></label>
+      <p class="smalltext muted">Vai junto em todos os "Obter orçamento": o rascunho aplica estas regras quando o pedido não diz o contrário e marca "regra da casa" nas linhas. Os valores valem para os orçamentos novos; os já feitos não mudam.</p></section>
       <h3>Artigos</h3>
       <label class="sr-only" for="pc-text">Artigos</label><textarea class="field pilot-catalog-text" id="pc-text" rows="12" placeholder="Chapa inox 2 mm;m²;78&#10;Tubo aço 40×40×2;m;4,50&#10;Montagem em obra;h;35">${esc(rows)}</textarea>
       <label>Ou importar a tabela de preços dos fornecedores (Excel .xlsx ou CSV)<input class="field" id="pc-file" type="file" accept=".xlsx,.csv,.txt,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></label>
@@ -507,12 +510,12 @@ document.addEventListener('click',async ev=>{
     let catalog;
     try {catalog=pilotParseCatalog(document.querySelector('#pc-text').value);} catch(e) {return say(e.message);}
     const num=id=>Number(String(document.querySelector(id).value).replace(',','.'));
-    const prices={hour:num('#pc-hour'),markup:num('#pc-markup'),vat:num('#pc-vat')};
-    if(Object.values(prices).some(v=>!Number.isFinite(v)||v<0))return say('Confirma os valores gerais: custo por hora, acréscimo e IVA.');
+    const prices={hour:num('#pc-hour'),markup:num('#pc-markup'),vat:num('#pc-vat'),houseRules:document.querySelector('#pc-rules').value};
+    if([prices.hour,prices.markup,prices.vat].some(v=>!Number.isFinite(v)||v<0))return say('Confirma os valores gerais: custo por hora, acréscimo e IVA.');
     target.disabled=true;say('');
     try {
       const out=await window.forjaPilot.savePrices(prices);
-      Object.assign(state.settings,{hour:out.hour,markup:out.markup,vat:out.vat});
+      Object.assign(state.settings,{hour:out.hour,markup:out.markup,vat:out.vat,houseRules:out.houseRules||''});
       state.settings.catalog=await window.forjaPilot.saveCatalog(catalog);
       closeModal();render();toast(`Catálogo guardado: ${state.settings.catalog.length} artigo(s), ${String(out.hour).replace('.',',')} €/h, acréscimo ${String(out.markup).replace('.',',')} %, IVA ${String(out.vat).replace('.',',')} %.`);
     } catch(e) {say(e.message);target.disabled=false;}

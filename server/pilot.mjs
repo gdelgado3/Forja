@@ -488,7 +488,7 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
           }
           const input=await jsonBody(req);
           const latest=workshopLookup.get(office.id),state=JSON.parse(latest.state);
-          state.settings={...priceSettings(office.name,input),privacy:state.settings.privacy};
+          state.settings={...priceSettings(office.name,input),privacy:state.settings.privacy,houseRules:state.settings.houseRules};
           db.prepare('UPDATE workshops SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(state),office.id);
           return reply(res,{ok:true});
         }
@@ -524,6 +524,7 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
         const office=workshopLookup.get(auth.workshop),state=JSON.parse(office.state);
         const next=priceSettings(office.name,{hour:input.hour,markup:input.markup,vat:input.vat,catalog:[]});
         state.settings={...state.settings,hour:next.hour,markup:next.markup,vat:next.vat};
+        if(input.houseRules!==undefined)state.settings.houseRules=typeof input.houseRules==='string'?input.houseRules.trim().slice(0,3000):'';
         db.prepare('UPDATE workshops SET state=?,last_use=? WHERE id=?').run(JSON.stringify(state),time(),office.id);
         return reply(res,{settings:state.settings});
       }
@@ -570,7 +571,7 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
         requireValue(turns.length<10,'Esta conversa já vai longa. Recomeça a análise.',409);
         requireValue(!turns.length || ask,'Escreve a correção ou a pergunta.');
         const files=project.files.map(f=>({name:String(f.name||'anexo'),...(db.prepare('SELECT mime,bytes FROM attachments WHERE workshop=? AND id=?').get(office.id,f.id)||{})})).filter(f=>f.bytes);
-        const messages=[firstMessage(project,files,state.settings?.catalog||[]).message];
+        const messages=[firstMessage(project,files,state.settings?.catalog||[],state.settings?.houseRules||'').message];
         // Cada análise anterior volta como resposta da ferramenta, seguida da mensagem da oficina que veio a seguir.
         turns.forEach((t,i)=>{
           messages.push({role:'assistant',content:t.content||[t.toolUse]});

@@ -31,6 +31,8 @@ Componentes escondidos: depois de ler, pensa que peças internas, de fixação o
 
 Pedidos grandes (mapa de quantidades, caderno de encargos, memória, desenhos): filtra as linhas da serralharia; procura o que muda o preço (classe do aço, EXC2/EXC3 da EN 1090, proteção e espessuras em µm, intumescente R30/R60, galvanização, controlo de soldaduras, classe dos parafusos); conta o que o "incluindo" esconde; procura incoerências entre desenhos. Cada facto leva documento e página.
 
+Regras da casa: quando a mensagem traz "Como esta oficina trabalha", aplica essas regras sempre que o pedido não diga o contrário (espessuras, ligas, acabamentos, o que está incluído) e escreve "regra da casa" na conta dessa linha. Se o pedido contrariar uma regra, segue o pedido e avisa.
+
 Medidas tiradas pela Forja de desenhos DXF/IFC são exatas: usa-as para as quantidades (estado "dito") e põe na origem o ficheiro e a camada. Diz que peça é cada medida; se não for claro, pergunta em vez de adivinhar.
 
 Linhas do orçamento: uma linha por material, processo, compra ou serviço, com quantidade e unidade (un, m, m², m³, kg ou h) e a conta na base. Horas de mão de obra só como estimativa "a confirmar". Usa nomes parecidos com os do catálogo da oficina quando fizer sentido, para os custos baterem.
@@ -131,7 +133,7 @@ export function pseudonymize(text, project) {
   return out;
 }
 
-export function firstMessage(project, files, catalog) {
+export function firstMessage(project, files, catalog, houseRules = '') {
   const content = [];
   const skipped = [];
   let n = 0;
@@ -155,6 +157,7 @@ export function firstMessage(project, files, catalog) {
     'Pedido do cliente (contactos já retirados):', str(project.request || '', 12000) || '(sem texto; ver anexos)',
     fields.length ? '\nDados já anotados pela oficina:\n' + fields.join('\n') : '',
     catalog.length ? '\nArtigos do catálogo da oficina (só nomes e unidades):\n' + catalog.slice(0, 200).map(c => `- ${str(c.label, 180)} (${c.unit})`).join('\n') : '',
+    houseRules ? '\nComo esta oficina trabalha (regras da casa, escritas pela oficina):\n' + str(houseRules, 3000) : '',
     measuresText(project),
     skipped.length ? '\nAnexos não enviados: ' + skipped.join('; ') : '',
     '\nLê o pedido e regista a leitura.',

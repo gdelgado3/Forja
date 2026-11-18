@@ -217,3 +217,5 @@
 .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
 .pilot-extra > summary { cursor:pointer; list-style:revert; display:flex; flex-wrap:wrap; gap:4px 10px; align-items:baseline; }
 .pilot-extra[open] > summary { margin-bottom:12px; }
+.pilot-rules { display:grid; gap:4px; font-weight:600; font-size:14px; margin-top:10px; }
+.pilot-rules textarea { font-weight:400; }
