@@ -279,9 +279,9 @@ function pilotAiHtml(p) {
     ${r.calcs.length?`<details><summary>Contas (${r.calcs.length})</summary><ul>${r.calcs.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></details>`:''}
     ${list('Avisos',r.warnings)}${err}
     <div class="pilot-ai-actions">${pilotAi.applied[p.id]===turns.at(-1).at?'<span class="smalltext muted">Esta leitura já foi aplicada. Se corrigires, a nova leitura pode ser aplicada outra vez (as linhas antigas ficam; apaga as que sobrarem).</span>':`<button type="button" class="primary" data-ai-apply ${r.lines.length||r.missing.length?'':'disabled'}>Aplicar ao orçamento e à memória</button>`}</div>
-    <div class="pilot-ai-ask"><label for="ai-ask">Corrigir ou perguntar</label>
-      <textarea class="field" id="ai-ask" rows="2" maxlength="2000" placeholder="Ex.: são 2 portões iguais; a chapa é de 3 mm; não leva motor."></textarea>
-      <div class="pilot-ai-actions"><button type="button" data-ai-ask ${d.remaining?'':'disabled'}>Enviar</button><button type="button" class="small ghost" data-ai-restart ${d.remaining?'':'disabled'}>Analisar de novo</button></div>
+    <div class="pilot-ai-ask"><label for="ai-ask">Análise da oficina</label><p class="smalltext muted">Escreve o que sabes e o rascunho não tem: correções, o que a empresa costuma fazer, o que está incluído. A Forja interpreta e atualiza o orçamento.</p>
+      <textarea class="field" id="ai-ask" rows="2" maxlength="2000" placeholder="Ex.: são 2 portões iguais; usamos chapa de 3 mm; a montagem está incluída; não leva motor."></textarea>
+      <div class="pilot-ai-actions"><button type="button" class="primary" data-ai-ask ${d.remaining?'':'disabled'}>Atualizar orçamento</button><button type="button" class="small ghost" data-ai-restart ${d.remaining?'':'disabled'}>Analisar de novo</button></div>
       ${history?`<ul class="pilot-ai-history">${history}</ul>`:''}</div></section>`;
 }
 function pilotAiApply(p) {
