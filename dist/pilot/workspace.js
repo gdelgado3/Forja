@@ -352,6 +352,19 @@ document.addEventListener('click',ev=>{
   } else pilotAiApply(p);
 });
 window.forjaRender=()=>render();
+// O botão "voltar" do telemóvel ou do browser também sai do pedido para o início.
+let pilotLastView=null;
+const pilotTrackView=()=>{
+  if(view==='detail' && pilotLastView!=='detail'){try{history.pushState({forja:'detail'},'');}catch{}}
+  pilotLastView=view;
+};
+document.addEventListener('click',()=>setTimeout(pilotTrackView,0),true);
+window.addEventListener('popstate',()=>{
+  if(view==='detail'){
+    if(document.querySelector('.pv-overlay')){document.querySelectorAll('.pv-overlay').forEach(o=>o.remove());}
+    view='projects';pilotLastView='projects';render();window.scrollTo(0,0);
+  }
+});
 function pilotQuickHtml() {
   if(!window.forjaPilot.demo || !state.projects.some(p=>p.id==='exemplo') || pilotQuick.closed || pilotFeedback.sent)return '';
   if(pilotQuick.rating)return `<div class="pilot-quick no-print" role="status"><strong>Obrigado pela nota ${pilotQuick.rating}!</strong> <span>Em uma frase: o que mudavas?</span>

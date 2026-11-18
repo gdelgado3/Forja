@@ -204,3 +204,5 @@
 .pilot-prices { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)) auto; gap:8px; align-items:end; }
 .pilot-prices label { display:grid; gap:4px; font-size:12px; font-weight:600; }
 @media(max-width:620px){ .pilot-prices { grid-template-columns:1fr 1fr; } }
+.back-button { display:inline-flex; align-items:center; gap:6px; margin:0 0 12px; padding:8px 14px; border:1px solid #c9cec4; border-radius:999px; background:#fff; font:inherit; font-size:14px; font-weight:600; cursor:pointer; }
+.back-button:hover { background:#f2f6f2; }
