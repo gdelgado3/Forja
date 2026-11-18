@@ -219,3 +219,10 @@
 .pilot-extra[open] > summary { margin-bottom:12px; }
 .pilot-rules { display:grid; gap:4px; font-weight:600; font-size:14px; margin-top:10px; }
 .pilot-rules textarea { font-weight:400; }
+.pilot-ai-toggle { border:0; cursor:pointer; font:inherit; font-size:11px; }
+.pilot-ai-qty { width:70px !important; }
+.pilot-ai-zero .pilot-ai-qty { border-color:#c47835 !important; background:#fff7ee; }
+.pilot-ai-scope { list-style:none; padding:0 !important; }
+.pilot-ai-scope li { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:6px 12px; padding:8px 0; border-bottom:1px solid #eceee8; }
+.pilot-ai-scope li > span:first-child { flex:1 1 320px; }
+.pilot-ai-scope-btns { display:flex; gap:6px; }

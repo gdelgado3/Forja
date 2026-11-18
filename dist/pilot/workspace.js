@@ -111,7 +111,7 @@ function pilotPriceCheck(p) {
 let pilotFeedback={rating:null,text:'',sent:false};
 let pilotQuick={rating:null,closed:false};
 // ---------- Leitura com IA ----------
-const pilotAi={pid:null,loading:false,error:'',data:null,off:new Set(),applied:{},prices:{},answers:{},fromClient:{},asks:[]};
+const pilotAi={pid:null,loading:false,error:'',data:null,off:new Set(),applied:{},prices:{},answers:{},fromClient:{},asks:[],qty:{},confirmed:new Set(),scope:{}};
 // Custo proposto pelo catálogo para uma linha lida do pedido (só se a unidade bater certo).
 // Linhas em horas sem artigo de horas no catálogo usam o custo por hora de partida da oficina.
 const pilotHourly=()=>({price:Number(state.settings.hour)||0,score:0,label:'',applied:true,hourly:true});
@@ -123,7 +123,7 @@ function pilotAiMatch(l) {
 }
 async function pilotAiLoad(p) {
   if(pilotAi.pid===p.id && (pilotAi.data || pilotAi.loading))return;
-  Object.assign(pilotAi,{pid:p.id,loading:false,error:'',data:null,off:new Set(),prices:{},answers:{},fromClient:{},asks:[]});
+  Object.assign(pilotAi,{pid:p.id,loading:false,error:'',data:null,off:new Set(),prices:{},answers:{},fromClient:{},asks:[],qty:{},confirmed:new Set(),scope:{}});
   try {pilotAi.data=await window.forjaPilot.ai.get(p.id);pilotAi.error=pilotAi.data.error||'';} catch(e) {pilotAi.error=e.message;}
   if(pilotAi.data?.pending)pilotAiPoll(p.id);
   await pilotAskRefresh(p.id,false);
@@ -228,7 +228,7 @@ function pilotAiPoll(pid) {
       if(!d.pending){
         const changed=d.turns.length!==(pilotAi.data?.turns?.length||0);
         pilotAi.data=d;pilotAi.loading=false;pilotAi.error=d.error||'';
-        if(changed){pilotAi.off=new Set();pilotAi.prices={};pilotAi.answers={};pilotAi.fromClient={};pilotAskMerge(false);toast('O orçamento proposto está pronto. Revê e aplica.');}
+        if(changed){pilotAi.off=new Set();pilotAi.prices={};pilotAi.answers={};pilotAi.fromClient={};pilotAi.qty={};pilotAi.confirmed=new Set();pilotAi.scope={};pilotAskMerge(false);toast('O orçamento proposto está pronto. Revê e aplica.');}
         // Acabou: salta para o separador Orçamento, com a proposta no topo.
         if(changed && view==='detail' && selected===pid){tab='orcamento';render();requestAnimationFrame(()=>document.querySelector('#pilot-ai')?.scrollIntoView({behavior:'smooth',block:'start'}));return;}
         if(view==='detail')render();
@@ -264,9 +264,13 @@ function pilotAiHtml(p) {
     const m=pilotAiMatch(l),edited=pilotAi.prices[i];
     const price=edited!==undefined?edited:m.price;
     const conf=edited!==undefined?{manual:true,label:m.label,score:m.score,applied:false}:{manual:false,label:m.label,score:m.score,applied:m.applied,hourly:m.hourly};
-    return `<li><label><input type="checkbox" data-ai-line="${i}" ${pilotAi.off.has(i)?'':'checked'}>
-    <span class="grow"><strong>${esc(l.desc)}</strong> · ${String(l.qty).replace('.',',')} ${esc(l.unit)} ${badge(l.state)}<small>${esc(l.basis)}</small></span></label>
-    <div class="pilot-ai-price"><input type="number" min="0" step="0.01" data-ai-price="${i}" value="${price===null?'':price}" placeholder="Custo" aria-label="Custo unitário de ${esc(l.desc)}"><span>€/${esc(l.unit)}</span>${pilotConfidence({match:conf})}</div></li>`;}).join('');
+    const qty=pilotAi.qty[i]!==undefined?pilotAi.qty[i]:l.qty, confirmed=pilotAi.confirmed.has(i), zero=!(Number(qty)>0);
+    const state=confirmed?'<button type="button" class="pilot-ai-state pilot-ai-said pilot-ai-toggle" data-ai-confirm="'+i+'" title="Tocar para voltar ao estado anterior">confirmado ✓</button>'
+      :l.state==='a confirmar'?'<button type="button" class="pilot-ai-state pilot-ai-check pilot-ai-toggle" data-ai-confirm="'+i+'" title="Tocar para confirmar esta linha">a confirmar · confirmar?</button>':badge(l.state);
+    return `<li class="${zero&&!pilotAi.off.has(i)?'pilot-ai-zero':''}"><label><input type="checkbox" data-ai-line="${i}" ${pilotAi.off.has(i)?'':'checked'}>
+    <span class="grow"><strong>${esc(l.desc)}</strong><small>${esc(l.basis)}</small></span></label>
+    <div class="pilot-ai-price"><input type="number" min="0" step="any" class="pilot-ai-qty" data-ai-qty="${i}" value="${zero&&pilotAi.qty[i]===undefined?'':qty}" placeholder="${zero?'Qtd.?':''}" aria-label="Quantidade de ${esc(l.desc)}"><span>${esc(l.unit)}</span>${state}
+    <input type="number" min="0" step="0.01" data-ai-price="${i}" value="${price===null?'':price}" placeholder="Custo" aria-label="Custo unitário de ${esc(l.desc)}"><span>€/${esc(l.unit)}</span>${pilotConfidence({match:conf})}</div></li>`;}).join('');
   const list=(title,items)=>items.length?`<h3>${title}</h3><ul>${items.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'';
   const pieces=r.pieces.length?`<details><summary>Peças (${r.pieces.length})</summary><div class="table-scroll"><table class="pilot-ai-table"><thead><tr><th>Peça</th><th>Medidas</th><th>Material</th><th>Qtd.</th><th>Fixação</th><th>Origem</th></tr></thead><tbody>
     ${r.pieces.map(x=>`<tr><td>${esc(x.piece)} ${badge(x.state)}</td><td>${esc(x.measures)}</td><td>${esc(x.material)}</td><td>${esc(x.qty)}</td><td>${esc(x.fixing)}</td><td><small>${esc(x.origin)}</small></td></tr>`).join('')}</tbody></table></div></details>`:'';
@@ -277,7 +281,7 @@ function pilotAiHtml(p) {
     ${r.lines.length?`<h3>Linhas propostas</h3><p class="smalltext muted">Escolhe as que entram no orçamento. O custo vem do catálogo e podes alterá-lo. A barra mostra quanto o artigo do catálogo bate com a linha; sem correspondência, o custo fica por indicar.</p><ul class="pilot-ai-lines">${lines}</ul>`:''}
     ${r.missing.length?`<h3>Falta saber</h3><p class="smalltext muted">Responde ao que já souberes, na própria linha, e atualiza o orçamento.</p><ul class="pilot-ai-questions">${r.missing.map((q,i)=>`<li><div class="pilot-ai-qtext"><span>${esc(q.question)}</span><small class="muted">${esc(q.why)}</small></div><div class="pilot-ai-answer"><input class="field" data-ai-answer="${i}" maxlength="600" value="${esc(pilotAi.answers[i]||'')}" placeholder="Resposta" aria-label="Resposta: ${esc(q.question)}">${pilotAi.fromClient[i]?'<small class="pilot-ai-client">Respondido pelo cliente</small>':''}</div></li>`).join('')}</ul>
       <div class="pilot-ai-actions"><button type="button" class="primary" data-ai-answers ${d.remaining?'':'disabled'}>Responder e atualizar orçamento</button><button type="button" data-ai-askclient>Perguntar ao cliente</button></div>${pilotAskStatus(r)}`:''}
-    ${list('Fora do âmbito / a confirmar',[...r.scope.excluded.map(x=>'Excluído: '+x),...r.scope.purchase.map(x=>'Compra: '+x),...r.scope.otherTrade.map(x=>'Outro ofício: '+x)])}
+    ${pilotScopeHtml(r)}
     ${r.calcs.length?`<details><summary>Contas (${r.calcs.length})</summary><ul>${r.calcs.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></details>`:''}
     ${list('Avisos',r.warnings)}${err}
     <div class="pilot-ai-actions">${pilotAi.applied[p.id]===turns.at(-1).at?'<span class="smalltext muted">Esta leitura já foi aplicada. Se corrigires, a nova leitura pode ser aplicada outra vez (as linhas antigas ficam; apaga as que sobrarem).</span>':`<button type="button" class="primary" data-ai-apply ${r.lines.length||r.missing.length?'':'disabled'}>Aplicar ao orçamento e à memória</button>`}</div>
@@ -286,12 +290,38 @@ function pilotAiHtml(p) {
       <div class="pilot-ai-actions"><button type="button" class="primary" data-ai-ask ${d.remaining?'':'disabled'}>Atualizar orçamento</button><button type="button" class="small ghost" data-ai-restart ${d.remaining?'':'disabled'}>Analisar de novo</button></div>
       ${history?`<ul class="pilot-ai-history">${history}</ul>`:''}</div></section>`;
 }
+// Âmbito: cada item com decisão "fica fora" ou "entra no orçamento".
+function pilotScopeItems(r) {
+  return [...r.scope.excluded.map((x,i)=>({key:'e'+i,label:'Excluído',text:x})),...r.scope.purchase.map((x,i)=>({key:'c'+i,label:'Compra',text:x})),...r.scope.otherTrade.map((x,i)=>({key:'o'+i,label:'Outro ofício',text:x}))];
+}
+function pilotScopeHtml(r) {
+  const items=pilotScopeItems(r);
+  if(!items.length)return '';
+  return `<h3>Fora do âmbito / a confirmar</h3><p class="smalltext muted">Decide cada um. "Entra no orçamento" cria as linhas quando carregares em Atualizar orçamento.</p><ul class="pilot-ai-scope">${items.map(it=>{
+    const d=pilotAi.scope[it.key];
+    return `<li><span><b>${esc(it.label)}:</b> ${esc(it.text)}</span><span class="pilot-ai-scope-btns"><button type="button" class="small ${d==='out'?'primary':''}" data-ai-scope="${it.key}" data-v="out" aria-pressed="${d==='out'}">Fica fora</button><button type="button" class="small ${d==='in'?'primary':''}" data-ai-scope="${it.key}" data-v="in" aria-pressed="${d==='in'}">Entra no orçamento</button></span></li>`;}).join('')}</ul>`;
+}
+// Junta numa só mensagem tudo o que a oficina decidiu desde a última análise.
+function pilotUpdateMessage() {
+  const r=pilotAi.data.turns.at(-1).reading, parts=[];
+  const answers=r.missing.map((q,i)=>[q.question,(pilotAi.answers[i]||'').trim()]).filter(([,a])=>a);
+  if(answers.length)parts.push('Respostas às perguntas em falta:\n'+answers.map(([q,a])=>`- ${q} → ${a}`).join('\n'));
+  const scope=pilotScopeItems(r).filter(it=>pilotAi.scope[it.key]);
+  if(scope.length)parts.push('Âmbito decidido pela oficina:\n'+scope.map(it=>`- ${it.text} → ${pilotAi.scope[it.key]==='in'?'ENTRA no orçamento: cria as linhas':'fica FORA do orçamento'}`).join('\n'));
+  const lines=r.lines.map((l,i)=>[l,i]).filter(([l,i])=>pilotAi.confirmed.has(i)||pilotAi.qty[i]!==undefined);
+  if(lines.length)parts.push('Linhas revistas pela oficina (mantém estes valores e marca-as como "dito"):\n'+lines.map(([l,i])=>`- ${l.desc}: ${pilotAi.qty[i]!==undefined?pilotAi.qty[i]:l.qty} ${l.unit}${pilotAi.confirmed.has(i)?' (confirmado)':''}`).join('\n'));
+  const extra=document.querySelector('#ai-ask')?.value.trim();
+  if(extra)parts.push('Análise da oficina: '+extra);
+  return parts.length?(parts.join('\n\n')+'\n\nAtualiza a leitura e as linhas com isto.').slice(0,2000):'';
+}
 function pilotAiApply(p) {
   const r=pilotAi.data.turns.at(-1).reading,t=now();
-  let added=0,priced=0;
+  let added=0,priced=0,zero=0;
   r.lines.forEach((x,i)=>{
     if(pilotAi.off.has(i))return;
-    const line={id:uid(),desc:x.desc,qty:Math.round(x.qty*1000)/1000,unit:x.unit,price:0,source:`Leitura do pedido (${x.state}) · ${x.basis}`.slice(0,400)};
+    const q=pilotAi.qty[i]!==undefined?Number(pilotAi.qty[i]):x.qty, st=pilotAi.confirmed.has(i)?'confirmado pela oficina':x.state;
+    const line={id:uid(),desc:x.desc,qty:Math.round((Number.isFinite(q)?q:0)*1000)/1000,unit:x.unit,price:0,source:`Leitura do pedido (${st}) · ${x.basis}`.slice(0,400)};
+    if(!(line.qty>0))zero++;
     const m=pilotAiMatch(x),edited=pilotAi.prices[i];
     if(edited!==undefined && edited!==null){line.price=edited;line.match={label:m.label,score:m.score,manual:true,applied:false};}
     else {line.price=m.price??0;line.match={label:m.label,score:m.score,manual:false,applied:m.applied,...(m.hourly?{hourly:true}:{})};}
@@ -299,12 +329,16 @@ function pilotAiApply(p) {
     p.lines.push(line);added++;
   });
   r.missing.forEach((q,i)=>{const a=(pilotAi.answers[i]||'').trim();p.memory.unshift(a?{id:uid(),kind:'Decisão',text:q.question+' → '+a,source:'Resposta da oficina',created:t}:{id:uid(),kind:'Pendente',text:q.question+(q.why?' ('+q.why+')':''),source:'Leitura do pedido · por confirmar',created:t});});
-  for(const x of [...r.scope.excluded.map(v=>'Excluído do orçamento: '+v),...r.scope.purchase.map(v=>'Compra (não fabricado): '+v),...r.scope.otherTrade.map(v=>'Outro ofício: '+v)])
-    p.memory.unshift({id:uid(),kind:'Hipótese',text:x,source:'Leitura do pedido · âmbito',created:t});
+  for(const it of pilotScopeItems(r)) {
+    const d=pilotAi.scope[it.key];
+    p.memory.unshift(d==='out'?{id:uid(),kind:'Decisão',text:'Fica fora do orçamento: '+it.text,source:'Âmbito decidido pela oficina',created:t}
+      :d==='in'?{id:uid(),kind:'Pendente',text:'Entra no orçamento (criar linhas): '+it.text,source:'Âmbito decidido pela oficina',created:t}
+      :{id:uid(),kind:'Hipótese',text:it.label+': '+it.text,source:'Leitura do pedido · âmbito por confirmar',created:t});
+  }
   pilotAi.applied[p.id]=pilotAi.data.turns.at(-1).at;
   dirty(p);event(p,`Leitura do pedido aplicada: ${added} linha(s), ${r.missing.length} pergunta(s) em falta.`,'Leitura do pedido · revista pela oficina');
   persist();tab='orcamento';render();
-  toast(`${added} linha(s) no orçamento, ${priced} com custo. Revê as quantidades e os custos.`);
+  toast(`${added} linha(s) no orçamento, ${priced} com custo.`+(zero?` ${zero} com quantidade 0: indica-a no orçamento.`:' Revê as quantidades e os custos.'));
 }
 async function pilotAiRun(p,body) {
   pilotAi.loading=true;pilotAi.error='';render();
@@ -320,6 +354,8 @@ async function pilotAiRun(p,body) {
   if(pilotAi.pid===p.id && view==='detail')render();
 }
 document.addEventListener('input',ev=>{
+  const qf=ev.target.closest?.('[data-ai-qty]');
+  if(qf){const i=Number(qf.dataset.aiQty),v=qf.value.replace(',','.');if(v==='')delete pilotAi.qty[i];else if(Number.isFinite(Number(v))&&Number(v)>=0)pilotAi.qty[i]=Number(v);qf.closest('li')?.classList.toggle('pilot-ai-zero',!(Number(v)>0));return;}
   const ans=ev.target.closest?.('[data-ai-answer]');
   if(ans){pilotAi.answers[Number(ans.dataset.aiAnswer)]=ans.value;return;}
   const f=ev.target.closest?.('[data-ai-price]');
@@ -336,23 +372,22 @@ document.addEventListener('change',ev=>{
   if(box.checked)pilotAi.off.delete(i);else pilotAi.off.add(i);
 });
 document.addEventListener('click',ev=>{
+  const sc=ev.target.closest('[data-ai-scope],[data-ai-confirm]');
+  if(sc && view==='detail'){
+    if(sc.dataset.aiScope){const k=sc.dataset.aiScope;pilotAi.scope[k]=pilotAi.scope[k]===sc.dataset.v?undefined:sc.dataset.v;}
+    else {const i=Number(sc.dataset.aiConfirm);if(pilotAi.confirmed.has(i))pilotAi.confirmed.delete(i);else pilotAi.confirmed.add(i);}
+    const y=window.scrollY;render();window.scrollTo(0,y);return;
+  }
   const t=ev.target.closest('[data-ai-run],[data-ai-apply],[data-ai-ask],[data-ai-restart],[data-ai-answers],[data-ai-askclient]');
   if(!t || view!=='detail')return;
   const p=project();
   if(t.hasAttribute('data-ai-run'))pilotAiRun(p,{});
   else if(t.hasAttribute('data-ai-restart'))pilotAiRun(p,{restart:true});
   else if(t.hasAttribute('data-ai-askclient'))pilotAskDialog(p);
-  else if(t.hasAttribute('data-ai-answers')) {
-    const r=pilotAi.data.turns.at(-1).reading;
-    const lines=r.missing.map((q,i)=>[q.question,(pilotAi.answers[i]||'').trim()]).filter(([,a])=>a);
-    if(!lines.length){toast('Escreve pelo menos uma resposta.');return;}
-    const extra=document.querySelector('#ai-ask')?.value.trim();
-    pilotAiRun(p,{message:('Respostas às perguntas em falta:\n'+lines.map(([q,a])=>`- ${q} → ${a}`).join('\n')+(extra?'\n\nOutra nota: '+extra:'')+'\n\nAtualiza a leitura e as linhas com estas respostas.').slice(0,2000)});
-  }
-  else if(t.hasAttribute('data-ai-ask')) {
-    const ask=document.querySelector('#ai-ask').value.trim();
-    if(!ask){toast('Escreve a correção ou a pergunta.');return;}
-    pilotAiRun(p,{message:ask});
+  else if(t.hasAttribute('data-ai-answers') || t.hasAttribute('data-ai-ask')) {
+    const msg=pilotUpdateMessage();
+    if(!msg){toast('Responde a uma pergunta, decide um item do âmbito, confirma uma linha ou escreve na Análise da oficina.');return;}
+    pilotAiRun(p,{message:msg});
   } else pilotAiApply(p);
 });
 window.forjaRender=()=>render();
