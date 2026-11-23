@@ -367,7 +367,7 @@ function pilotAiHtml(p) {
   const err=pilotAi.error?`<p class="pilot-message" role="alert">${esc(pilotAi.error)}</p>`:'';
   const turns=d?.turns||[];
   if(pilotAi.loading){const started=pilotAi.data?.started;return `<section class="pilot-ai pilot-ai-forging no-print" id="pilot-ai" aria-busy="true">
-    <div class="pilot-forge" aria-hidden="true"><svg viewBox="0 0 160 110"><g class="pf-hammer"><rect x="92" y="10" width="8" height="46" rx="3"/><rect x="72" y="4" width="48" height="18" rx="4"/></g>
+    <div class="pilot-forge" aria-hidden="true"><svg viewBox="0 0 160 110"><g class="pf-hammer"><rect class="pf-handle" x="90" y="40" width="64" height="7" rx="3"/><rect class="pf-head" x="73" y="28" width="22" height="28" rx="4"/></g>
       <path class="pf-anvil" d="M30 62 H128 C128 70 118 74 104 74 L96 74 L100 92 H58 L62 74 L44 74 C36 74 30 68 30 62 Z"/><rect class="pf-piece" x="70" y="56" width="30" height="6" rx="2"/>
       <g class="pf-sparks"><circle cx="78" cy="54" r="1.8"/><circle cx="90" cy="52" r="1.6"/><circle cx="84" cy="50" r="1.4"/><circle cx="96" cy="54" r="1.5"/><circle cx="74" cy="52" r="1.3"/></g></svg></div>
     <h2>A forjar o teu orçamento</h2>
