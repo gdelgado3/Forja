@@ -11,3 +11,4 @@
 
 @media(max-width:560px){.extra-row{padding-bottom:8px;border-bottom:1px solid #e4e7df}}
 .back-button { display:inline-flex; align-items:center; gap:6px; margin:0 0 12px; padding:8px 14px; border:1px solid #c9cec4; border-radius:999px; background:#fff; font:inherit; font-size:14px; font-weight:600; cursor:pointer; }
+.pilot-explain-alt{display:none}

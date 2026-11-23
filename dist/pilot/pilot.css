@@ -767,3 +767,9 @@
 .pilot-mode details[data-fold] > summary h2::before { content:'▸'; display:inline-block; width:1.1em; color:var(--forja-muted); transition:transform .15s; }
 .pilot-mode details[data-fold][open] > summary h2::before { transform:rotate(90deg); }
 .pilot-mode details[data-fold][open] > summary { margin-bottom:12px; }
+/* Explicações ocultas por omissão: ficam os números; a origem continua a um clique. */
+.pilot-mode.hide-explain .pilot-explain { display:none !important; }
+.pilot-mode.hide-explain .pilot-explain-alt { display:inline; }
+.pilot-mode [data-explain-toggle] { white-space:nowrap; }
+.pilot-mode h3 [data-explain-toggle] { margin-left:8px; vertical-align:middle; font-size:13px; font-weight:500; }
+@media print { .pilot-mode.hide-explain .pilot-explain { display:revert !important; } .pilot-mode .pilot-explain-alt { display:none !important; } }

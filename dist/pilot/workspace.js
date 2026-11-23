@@ -112,6 +112,9 @@ function pilotPriceCheck(p) {
 }
 let pilotFeedback={rating:null,text:'',sent:false};
 let pilotFold={check:false,feedback:false};
+// Explicações de texto (origem, contas, ajudas) ocultas por omissão; preferência só deste navegador.
+(()=>{let show=false;try{show=localStorage.getItem('forja-explain')==='1'}catch{}document.body.classList.toggle('hide-explain',!show)})();
+document.addEventListener('click',ev=>{const b=ev.target.closest?.('[data-explain-toggle]');if(!b)return;ev.preventDefault();const show=!document.body.classList.toggle('hide-explain');try{localStorage.setItem('forja-explain',show?'1':'0')}catch{}});
 document.addEventListener('toggle',e=>{const d=e.target;if(d?.dataset?.fold)pilotFold[d.dataset.fold]=d.open},true);
 let pilotQuick={rating:null,closed:false};
 // ---------- Leitura com IA ----------
@@ -273,7 +276,7 @@ function pilotAiHtml(p) {
     const state=confirmed?'<button type="button" class="pilot-ai-state pilot-ai-said pilot-ai-toggle" data-ai-confirm="'+i+'" title="Tocar para voltar ao estado anterior">confirmado ✓</button>'
       :l.state==='a confirmar'?'<button type="button" class="pilot-ai-state pilot-ai-check pilot-ai-toggle" data-ai-confirm="'+i+'" title="Tocar para confirmar esta linha">a confirmar · confirmar?</button>':badge(l.state);
     return `<li class="${zero&&!pilotAi.off.has(i)?'pilot-ai-zero':''}"><label><input type="checkbox" data-ai-line="${i}" ${pilotAi.off.has(i)?'':'checked'}>
-    <span class="grow"><strong>${esc(l.desc)}</strong><small>${esc(l.basis)}</small></span></label>
+    <span class="grow"><strong>${esc(l.desc)}</strong><small class="pilot-explain">${esc(l.basis)}</small></span></label>
     <div class="pilot-ai-price"><input type="number" min="0" step="any" class="pilot-ai-qty" data-ai-qty="${i}" value="${zero&&pilotAi.qty[i]===undefined?'':qty}" placeholder="${zero?'Qtd.?':''}" aria-label="Quantidade de ${esc(l.desc)}"><span>${esc(l.unit)}</span>${state}
     <input type="number" min="0" step="0.01" data-ai-price="${i}" value="${price===null?'':price}" placeholder="Custo" aria-label="Custo unitário de ${esc(l.desc)}"><span>€/${esc(l.unit)}</span>${pilotConfidence({match:conf})}</div></li>`;}).join('');
   const list=(title,items)=>items.length?`<h3>${title}</h3><ul>${items.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'';
@@ -283,14 +286,14 @@ function pilotAiHtml(p) {
   return `<section class="card card-pad pilot-ai no-print" id="pilot-ai"><div class="card-title"><h2>Orçamento proposto</h2>${left}</div>
     ${r.reply?`<p class="pilot-ai-reply">${esc(r.reply)}</p>`:''}
     <p>${esc(r.summary)}</p>${pieces}
-    ${r.lines.length?`<h3>Linhas propostas</h3><p class="smalltext muted">Escolhe as que entram no orçamento. O custo vem do catálogo e podes alterá-lo. A barra mostra quanto o artigo do catálogo bate com a linha; sem correspondência, o custo fica por indicar.</p><ul class="pilot-ai-lines">${lines}</ul>`:''}
-    ${r.missing.length?`<h3>Falta saber</h3><p class="smalltext muted">Responde ao que já souberes, na própria linha, e atualiza o orçamento.</p><ul class="pilot-ai-questions">${r.missing.map((q,i)=>`<li><div class="pilot-ai-qtext"><span>${esc(q.question)}</span><small class="muted">${esc(q.why)}</small></div><div class="pilot-ai-answer"><input class="field" data-ai-answer="${i}" maxlength="600" value="${esc(pilotAi.answers[i]||'')}" placeholder="Resposta" aria-label="Resposta: ${esc(q.question)}">${pilotAi.fromClient[i]?'<small class="pilot-ai-client">Respondido pelo cliente</small>':''}</div></li>`).join('')}</ul>
+    ${r.lines.length?`<h3>Linhas propostas <button type="button" class="small ghost" data-explain-toggle><span class="pilot-explain">Ocultar explicações</span><span class="pilot-explain-alt">Mostrar explicações</span></button></h3><p class="smalltext muted pilot-explain">Escolhe as que entram no orçamento. O custo vem do catálogo e podes alterá-lo. A barra mostra quanto o artigo do catálogo bate com a linha; sem correspondência, o custo fica por indicar.</p><ul class="pilot-ai-lines">${lines}</ul>`:''}
+    ${r.missing.length?`<h3>Falta saber</h3><p class="smalltext muted pilot-explain">Responde ao que já souberes, na própria linha, e atualiza o orçamento.</p><ul class="pilot-ai-questions">${r.missing.map((q,i)=>`<li><div class="pilot-ai-qtext"><span>${esc(q.question)}</span><small class="muted pilot-explain">${esc(q.why)}</small></div><div class="pilot-ai-answer"><input class="field" data-ai-answer="${i}" maxlength="600" value="${esc(pilotAi.answers[i]||'')}" placeholder="Resposta" aria-label="Resposta: ${esc(q.question)}">${pilotAi.fromClient[i]?'<small class="pilot-ai-client">Respondido pelo cliente</small>':''}</div></li>`).join('')}</ul>
       <div class="pilot-ai-actions"><button type="button" class="primary" data-ai-answers ${d.remaining?'':'disabled'}>Responder e atualizar orçamento</button><button type="button" data-ai-askclient>Perguntar ao cliente</button></div>${pilotAskStatus(r)}`:''}
     ${pilotScopeHtml(r)}
     ${r.calcs.length?`<details><summary>Contas (${r.calcs.length})</summary><ul>${r.calcs.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></details>`:''}
     ${list('Avisos',r.warnings)}${err}
     <div class="pilot-ai-actions">${pilotAi.applied[p.id]===turns.at(-1).at?'<span class="smalltext muted">Esta leitura já foi aplicada. Se corrigires, a nova leitura pode ser aplicada outra vez (as linhas antigas ficam; apaga as que sobrarem).</span>':`<button type="button" class="primary" data-ai-apply ${r.lines.length||r.missing.length?'':'disabled'}>Aplicar ao orçamento e à memória</button>`}</div>
-    <div class="pilot-ai-ask"><label for="ai-ask">Análise da oficina</label><p class="smalltext muted">Escreve o que sabes e o rascunho não tem: correções, o que a empresa costuma fazer, o que está incluído. A Forja interpreta e atualiza o orçamento.</p>
+    <div class="pilot-ai-ask"><label for="ai-ask">Análise da oficina</label><p class="smalltext muted pilot-explain">Escreve o que sabes e o rascunho não tem: correções, o que a empresa costuma fazer, o que está incluído. A Forja interpreta e atualiza o orçamento.</p>
       <textarea class="field" id="ai-ask" rows="2" maxlength="2000" placeholder="Ex.: são 2 portões iguais; usamos chapa de 3 mm; a montagem está incluída; não leva motor."></textarea>
       <div class="pilot-ai-actions"><button type="button" class="primary" data-ai-ask ${d.remaining?'':'disabled'}>Atualizar orçamento</button><button type="button" class="small ghost" data-ai-restart ${d.remaining?'':'disabled'}>Analisar de novo</button></div>
       ${history?`<ul class="pilot-ai-history">${history}</ul>`:''}</div></section>`;
@@ -302,7 +305,7 @@ function pilotScopeItems(r) {
 function pilotScopeHtml(r) {
   const items=pilotScopeItems(r);
   if(!items.length)return '';
-  return `<h3>Fora do âmbito / a confirmar</h3><p class="smalltext muted">Decide cada um. "Entra no orçamento" cria as linhas quando carregares em Atualizar orçamento.</p><ul class="pilot-ai-scope">${items.map(it=>{
+  return `<h3>Fora do âmbito / a confirmar</h3><p class="smalltext muted pilot-explain">Decide cada um. "Entra no orçamento" cria as linhas quando carregares em Atualizar orçamento.</p><ul class="pilot-ai-scope">${items.map(it=>{
     const d=pilotAi.scope[it.key];
     return `<li><span><b>${esc(it.label)}:</b> ${esc(it.text)}</span><span class="pilot-ai-scope-btns"><button type="button" class="small ${d==='out'?'primary':''}" data-ai-scope="${it.key}" data-v="out" aria-pressed="${d==='out'}">Fica fora</button><button type="button" class="small ${d==='in'?'primary':''}" data-ai-scope="${it.key}" data-v="in" aria-pressed="${d==='in'}">Entra no orçamento</button></span></li>`;}).join('')}</ul>`;
 }
