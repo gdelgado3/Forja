@@ -36,18 +36,48 @@ function access(mode) {
     </form></section></main>`;
 }
 function landing() {
-  root.innerHTML=`<main class="pilot-access pilot-landing"><div class="pilot-brand"><span>f</span> Forja</div>
-    <section class="card card-pad"><h1>Do pedido ao orçamento em minutos.</h1>
-    <p>Envia o pedido de um cliente (texto, foto, esquiço ou PDF) e recebe o rascunho do orçamento.</p>
-    <p id="pilot-message" class="pilot-message" role="alert" hidden></p>
-    <button class="primary pilot-try" type="button" data-pilot-action="demo">Experimentar agora</button>
-    <p class="muted smalltext">Abre uma oficina de demonstração, sem conta. Não envies dados pessoais de clientes.</p>
-    <details class="muted smalltext"><summary>Privacidade</summary><p>A oficina é responsável pelos dados dos seus clientes. A Forja trata-os por conta da oficina para preparar orçamentos, com alojamento na UE e acesso limitado à equipa autorizada da oficina, da Forja e dos fornecedores contratados para prestar o serviço. Os dados pessoais ficam excluídos do treino de modelos. A Forja apaga os pedidos que não avancem até 90 dias após a receção e os restantes até 90 dias após o fecho do orçamento. O fim do piloto antecipa o apagamento, salvo obrigação legal. Para exercer direitos sobre os dados de um pedido, contacte a oficina.</p></details></section>
-    <section class="card card-pad"><h2>Já tenho conta</h2>
-    <form data-pilot-form="login"><label>Email<input class="field" name="email" type="email" autocomplete="username" required></label>
-    <label>Palavra-passe<input class="field" name="password" type="password" required autocomplete="current-password" maxlength="128"></label>
-    <label class="pilot-show"><input type="checkbox" data-pilot-show> Mostrar palavra-passe</label>
-    <button type="submit">Entrar</button></form></section></main>`;
+  root.innerHTML=`<main class="pilot-landing2">
+  <header class="pl-top"><div class="pilot-brand"><span>f</span> Forja</div><a class="pl-login-link" href="#pl-login">Já tenho conta</a></header>
+  <div class="pl-grid">
+    <section class="pl-copy">
+      <h1>Do esboço ao orçamento, com as contas à vista.</h1>
+      <p class="pl-lead">A Forja lê pedidos de serralharia (texto, foto, esquiço ou PDF), tira as medidas, propõe as linhas com os preços do teu catálogo e diz o que falta perguntar ao cliente. Tu revês antes de enviar.</p>
+      <p id="pilot-message" class="pilot-message" role="alert" hidden></p>
+      <button class="primary pilot-try pl-try" type="button" data-pilot-action="demo">Experimentar agora</button>
+      <p class="pl-note">Abre uma oficina de demonstração, sem conta. Não envies dados pessoais de clientes.</p>
+      <section class="pl-login" id="pl-login" aria-labelledby="pl-login-title"><h2 id="pl-login-title">Já tenho conta</h2>
+        <form data-pilot-form="login"><div class="pl-fields"><label>Email<input class="field" name="email" type="email" autocomplete="username" required></label>
+        <label>Palavra-passe<input class="field" name="password" type="password" required autocomplete="current-password" maxlength="128"></label></div>
+        <div class="pl-login-row"><label class="pilot-show"><input type="checkbox" data-pilot-show> Mostrar palavra-passe</label><button type="submit">Entrar</button></div></form>
+      </section>
+      <details class="muted smalltext pl-privacy"><summary>Privacidade</summary><p>A oficina é responsável pelos dados dos seus clientes. A Forja trata-os por conta da oficina para preparar orçamentos, com alojamento na UE e acesso limitado à equipa autorizada da oficina, da Forja e dos fornecedores contratados para prestar o serviço. Os dados pessoais ficam excluídos do treino de modelos. A Forja apaga os pedidos que não avancem até 90 dias após a receção e os restantes até 90 dias após o fecho do orçamento. O fim do piloto antecipa o apagamento, salvo obrigação legal. Para exercer direitos sobre os dados de um pedido, contacte a oficina.</p></details>
+    </section>
+    <figure class="pl-stage" aria-label="Exemplo: um esboço de prateleiras em L e o rascunho de orçamento que a Forja prepara">
+      <div class="pl-sketch" aria-hidden="true">
+        <p class="pl-sketch-text">Boa tarde, preciso de 3 prateleiras em L para a cozinha, em inox. Medidas no desenho.</p>
+        <svg viewBox="0 0 320 200" role="presentation">
+          <path class="pl-part" d="M60 40 L60 140 L220 140" />
+          <g class="pl-cota"><path d="M60 166 H220 M60 158 V174 M220 158 V174"/><text x="140" y="188">250</text></g>
+          <g class="pl-cota"><path d="M32 40 V140 M24 40 H40 M24 140 H40"/><text x="16" y="94" transform="rotate(-90 16 94)">150</text></g>
+          <text class="pl-hand" x="100" y="58">comprimento 600</text>
+          <text class="pl-hand" x="100" y="80">inox 2 mm, escovado</text>
+          <text class="pl-hand pl-hand-strong" x="100" y="106">× 3</text>
+        </svg>
+      </div>
+      <div class="pl-quote">
+        <div class="pl-quote-head"><strong>Rascunho do orçamento</strong><span>exemplo</span></div>
+        <ol>
+          <li><span class="pl-q-desc">Chapa inox 304, 2 mm<small>(250 + 150) × 600 mm = 0,24 m², × 3 = 0,72 m²</small></span><span class="pl-q-num">56,16 €</span></li>
+          <li><span class="pl-q-desc">Corte laser<small>perímetro 2 m por peça, × 3 = 6 m</small></span><span class="pl-q-num">15,00 €</span></li>
+          <li><span class="pl-q-desc">Quinagem<small>1 dobra por peça, × 3</small></span><span class="pl-q-num">10,50 €</span></li>
+          <li><span class="pl-q-desc">Escovado<small>0,72 m²</small></span><span class="pl-q-num">10,80 €</span></li>
+        </ol>
+        <p class="pl-q-ask"><span>A confirmar</span>Fixação à parede: parafusos à vista ou ocultos?</p>
+        <div class="pl-q-total"><span>Custo estimado</span><strong>92,46 €</strong></div>
+      </div>
+      <figcaption>Preços de exemplo. Na tua oficina, vêm do teu catálogo.</figcaption>
+    </figure>
+  </div></main>`;
 }
 const bytesText = n => n>=1048576?(n/1048576).toFixed(1).replace('.',',')+' MB':Math.max(1,Math.round(n/1024))+' kB';
 const dateText = value => value?new Date(value).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
