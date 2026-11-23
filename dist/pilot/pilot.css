@@ -228,3 +228,508 @@
 .pilot-ai-scope-btns { display:flex; gap:6px; }
 .pilot-notes { display:grid; gap:4px; font-weight:600; font-size:14px; margin:10px 0; }
 .pilot-notes textarea { font-weight:400; }
+/*
+ * Forja · alterações visuais para a demo.
+ * Acrescentar ao FIM de pilot.css, depois das regras existentes.
+ * .forja-origin = classe adicional no contentor do modal de origem.
+ * .forja-final = classe adicional no contentor da pré-visualização final.
+ * .forja-main-action = classe adicional no botão principal JÁ existente.
+ * Os estados e os textos continuam a vir dos dados existentes.
+ */
+
+/* 0. Base partilhada · tipografia, contraste, foco e alvos */
+:root {
+  --forja-brand: #214236;
+  --forja-brand-hover: #173126;
+  --forja-bg: #f3f5ef;
+  --forja-paper: #ffffff;
+  --forja-ink: #22332c;
+  --forja-muted: #59655d;
+  --forja-line: #e4e7df;
+  --forja-control-border: #7b827b;
+  --forja-lime: #d9edbd;
+  --forja-orange: #c47835;
+  --forja-focus: #214236;
+  --forja-read-bg: #e8f2eb;
+  --forja-read-ink: #214236;
+  --forja-estimate-bg: #eef2f8;
+  --forja-estimate-ink: #284a7a;
+  --forja-pending-bg: #fff3e7;
+  --forja-pending-ink: #7a4312;
+  --forja-space-1: 4px;
+  --forja-space-2: 8px;
+  --forja-space-3: 12px;
+  --forja-space-4: 16px;
+  --forja-space-5: 24px;
+  --forja-space-6: 32px;
+  --forja-title: 28px;
+  --forja-section: 20px;
+  --forja-radius: 12px;
+  --forja-shadow: 0 2px 8px rgb(34 51 44 / 6%);
+  --forja-modal-shadow: 0 20px 60px rgb(34 51 44 / 20%);
+}
+
+.pilot-mode {
+  color: var(--forja-ink);
+  background: var(--forja-bg);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.pilot-mode :where(button, input, select, textarea) {
+  font-family: inherit;
+}
+
+.pilot-mode :where(button, input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), select) {
+  min-height: 44px;
+}
+
+.pilot-mode :where(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), textarea, select) {
+  border-color: var(--forja-control-border);
+}
+
+.pilot-mode :where(button, summary, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid var(--forja-focus);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px var(--forja-paper);
+}
+
+.pilot-mode :where(.pilot-content, .pilot-drawing, .pilot-ai, .pilot-ai-lines li) {
+  min-width: 0;
+}
+
+.pilot-mode .pilot-office {
+  width: min(1220px, 100%);
+  padding: var(--forja-space-5) var(--forja-space-5) var(--forja-space-6);
+}
+
+.pilot-mode .heading h1 {
+  margin: 0;
+  font-size: var(--forja-title);
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+
+.pilot-mode .pilot-content :where(h2, .pilot-drawing > h3, .pilot-general h3, .pilot-ai h3, .quote-read h3) {
+  margin: var(--forja-space-5) 0 var(--forja-space-3);
+  font-size: var(--forja-section);
+  line-height: 1.3;
+}
+
+.pilot-mode :where(.pilot-header button, .pilot-content .heading button, .back-button) {
+  min-height: 44px;
+}
+
+.pilot-mode .heading p,
+.pilot-mode .pilot-content .card:not(.summary) :where(.muted, .smalltext) {
+  color: var(--forja-muted);
+  font-size: 14px;
+}
+
+.pilot-mode .pilot-sync {
+  color: var(--forja-muted);
+  font-size: 14px;
+}
+
+.pilot-mode .forja-main-action {
+  min-height: 48px;
+  padding: var(--forja-space-3) var(--forja-space-5);
+  border: 1px solid var(--forja-brand);
+  border-radius: 8px;
+  color: var(--forja-paper);
+  background: var(--forja-brand);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.pilot-mode .forja-secondary-action {
+  min-height: 44px;
+  border: 1px solid var(--forja-control-border);
+  color: var(--forja-brand);
+  background: var(--forja-paper);
+}
+
+.pilot-mode .forja-secondary-action:hover { background: var(--forja-bg); }
+
+.pilot-mode .forja-main-action:hover {
+  color: var(--forja-paper);
+  background: var(--forja-brand-hover);
+  border-color: var(--forja-brand-hover);
+}
+
+/* 1. Entrada do pedido · campo de trabalho e ação principal */
+.pilot-mode .forja-entry .summary {
+  color: var(--forja-ink);
+  background: var(--forja-paper);
+  border: 1px solid var(--forja-line);
+  box-shadow: var(--forja-shadow);
+}
+
+.pilot-mode .forja-entry .summary :where(.eyebrow, .smalltext) {
+  color: var(--forja-muted);
+}
+
+.pilot-mode .forja-entry .summary .big-price { font-size: 24px; }
+
+.pilot-mode .forja-entry .summary :where(hr, .summary-line) {
+  border-color: var(--forja-line);
+}
+
+.pilot-mode .pilot-drop {
+  gap: var(--forja-space-3);
+  padding: var(--forja-space-5);
+  border: 1px dashed var(--forja-control-border);
+  border-radius: var(--forja-radius);
+  background: var(--forja-paper);
+}
+
+.pilot-mode .pilot-drop textarea {
+  min-height: 144px;
+  padding: var(--forja-space-3) var(--forja-space-4);
+  border: 1px solid var(--forja-control-border);
+  border-radius: 8px;
+  color: var(--forja-ink);
+  background: var(--forja-paper);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.pilot-mode .pilot-drop textarea::placeholder {
+  color: var(--forja-muted);
+  opacity: 1;
+}
+
+.pilot-mode .pilot-try-example {
+  animation: none;
+  box-shadow: none;
+  padding: var(--forja-space-4) 56px var(--forja-space-4) var(--forja-space-4);
+  border: 1px solid var(--forja-control-border);
+  border-radius: var(--forja-radius);
+  color: var(--forja-ink);
+  background: var(--forja-paper);
+}
+
+.pilot-mode .pilot-try-example :where(strong, small) {
+  color: var(--forja-ink);
+}
+
+.pilot-mode .pilot-try-example strong { font-size: 18px; }
+.pilot-mode .pilot-try-example small { font-size: 14px; }
+.pilot-mode .pilot-try-example:hover { background: var(--forja-bg); }
+.pilot-mode .pilot-try-badge {
+  color: var(--forja-brand);
+  background: var(--forja-lime);
+}
+
+.pilot-mode .pilot-menu-card {
+  min-width: 0;
+  padding: var(--forja-space-5);
+  border-radius: var(--forja-radius);
+  box-shadow: var(--forja-shadow);
+}
+
+.pilot-mode :where(.pilot-file, .pilot-sent li) {
+  overflow-wrap: anywhere;
+}
+
+/* 2. Resultado · linhas legíveis, origem acessível e estados distintos */
+.pilot-mode .pilot-ai {
+  border-width: 1px;
+  border-color: var(--forja-line);
+  border-radius: var(--forja-radius);
+  box-shadow: var(--forja-shadow);
+}
+
+.pilot-mode .pilot-ai-lines li {
+  gap: var(--forja-space-3) var(--forja-space-4);
+  padding: var(--forja-space-4) 0;
+}
+
+.pilot-mode .pilot-ai-lines li label {
+  min-width: 0;
+  min-height: 44px;
+  padding: var(--forja-space-2) 0;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.pilot-mode .pilot-ai-lines small {
+  color: var(--forja-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.pilot-mode .pilot-ai-price {
+  gap: var(--forja-space-2);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pilot-mode .pilot-ai-price input {
+  min-height: 44px;
+  border-color: var(--forja-control-border);
+  font-size: 16px;
+}
+
+.pilot-mode :where(.pilot-ai-state, .pilot-stale) {
+  max-width: 100%;
+  padding: var(--forja-space-1) var(--forja-space-2);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.pilot-mode .pilot-ai-said {
+  color: var(--forja-read-ink);
+  background: var(--forja-read-bg);
+}
+
+.pilot-mode .pilot-ai-deduced {
+  color: var(--forja-estimate-ink);
+  background: var(--forja-estimate-bg);
+}
+
+.pilot-mode :where(.pilot-ai-check, .pilot-stale) {
+  color: var(--forja-pending-ink);
+  background: var(--forja-pending-bg);
+  border-color: #bd8b5d;
+}
+
+/* Confiança do catálogo: mantém as cores e a barra originais (sem override). */
+
+.pilot-mode .pilot-check-options .chosen.pilot-over {
+  color: var(--forja-pending-ink);
+  border-color: #bd8b5d;
+  background: var(--forja-pending-bg);
+}
+.pilot-mode .pilot-ai-toggle { font-size: 14px; }
+.pilot-mode .pilot-show { min-height: 44px; }
+
+.pilot-mode .pilot-why {
+  margin: var(--forja-space-2) 0 var(--forja-space-3);
+  font-size: 14px;
+}
+
+.pilot-mode :where(.pilot-why summary, .pilot-ai summary) {
+  min-height: 44px;
+  padding: var(--forja-space-2) 0;
+  color: var(--forja-brand);
+  line-height: 28px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.pilot-mode .pilot-ai-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.pilot-mode .pilot-ai-table :where(th, td) {
+  padding: var(--forja-space-3);
+  border-bottom: 1px solid var(--forja-line);
+  font-size: 15px;
+  line-height: 1.5;
+  text-align: start;
+  vertical-align: top;
+}
+
+.pilot-mode .pilot-ai-qtext small {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.pilot-mode .pilot-ai-questions li {
+  padding: var(--forja-space-4) 0;
+  gap: var(--forja-space-3) var(--forja-space-5);
+}
+
+.pilot-mode .pilot-ai-table th,
+.pilot-mode .forja-final .quote-table th { color: var(--forja-muted); }
+
+.pilot-mode .pilot-ai-actions {
+  gap: var(--forja-space-3);
+  margin-top: var(--forja-space-5);
+}
+
+/* 3. Modal «Origem da estimativa» · classe só neste modal */
+.pilot-mode .forja-origin {
+  width: min(680px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  padding: var(--forja-space-5);
+  border: 1px solid var(--forja-line);
+  border-radius: var(--forja-radius);
+  color: var(--forja-ink);
+  background: var(--forja-paper);
+  box-shadow: var(--forja-modal-shadow);
+  font-size: 16px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.pilot-mode .forja-origin h2 {
+  margin: 0 0 var(--forja-space-4);
+  font-size: var(--forja-section);
+  line-height: 1.3;
+}
+
+.pilot-mode .forja-origin :where(small, .smalltext, .muted) {
+  color: var(--forja-muted);
+  font-size: 14px;
+  opacity: 1;
+}
+
+.pilot-mode .forja-origin :where(pre, blockquote) {
+  max-width: 100%;
+  margin: var(--forja-space-4) 0;
+  padding: var(--forja-space-4);
+  border-inline-start: 3px solid var(--forja-control-border);
+  border-radius: 0 8px 8px 0;
+  background: var(--forja-bg);
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.pilot-mode :where(.pilot-file, .forja-origin a) {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.pilot-mode .forja-origin a {
+  color: var(--forja-brand);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* 4. Vista final · aplicar a classe na pré-visualização da oficina */
+.pilot-mode .forja-final :where(.quote-read, .card-pad:not(.summary)) {
+  padding: var(--forja-space-5);
+  border: 1px solid var(--forja-line);
+  border-radius: var(--forja-radius);
+  background: var(--forja-paper);
+  box-shadow: var(--forja-shadow);
+}
+
+.pilot-mode .forja-final .quote-totals {
+  gap: var(--forja-space-3);
+  margin-bottom: var(--forja-space-5);
+}
+
+.pilot-mode .forja-final .quote-totals > div {
+  flex: 1 1 160px;
+  min-width: 0;
+  padding: var(--forja-space-4);
+  border: 1px solid var(--forja-line);
+  border-radius: 8px;
+  background: var(--forja-bg);
+}
+
+.pilot-mode .forja-final .quote-totals small {
+  color: var(--forja-muted);
+  font-size: 14px;
+}
+
+.pilot-mode .forja-final .quote-totals strong {
+  display: block;
+  margin-top: var(--forja-space-1);
+  font-size: 24px;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+
+.pilot-mode .forja-final .quote-totals > .forja-total-final {
+  color: var(--forja-brand);
+  border-color: var(--forja-brand);
+  background: var(--forja-lime);
+}
+
+.pilot-mode .forja-final .quote-totals .forja-total-final strong {
+  font-size: 32px;
+}
+
+/* Não altera a ordem de colunas nem presume qual delas contém o total. */
+.pilot-mode .forja-final .quote-table :where(th, td) {
+  padding: var(--forja-space-3);
+  font-size: 15px;
+  line-height: 1.5;
+  vertical-align: top;
+}
+
+.pilot-mode .forja-final .quote-table td {
+  font-variant-numeric: tabular-nums;
+}
+
+.pilot-mode .forja-final .quote-table [data-action="line-source"] {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 8px 0 !important;
+  color: var(--forja-brand);
+  font-size: 14px !important;
+  line-height: 1.5;
+  white-space: normal;
+  text-align: start;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.pilot-mode .quote-actions { gap: var(--forja-space-3); }
+
+/* Mobile · quebra em linhas, mantendo todos os dados e ações */
+@media (max-width: 640px) {
+  .pilot-mode .pilot-office { padding: 16px 12px 24px; }
+  .pilot-mode .heading h1 { font-size: 24px; }
+  .pilot-mode .pilot-drop { padding: var(--forja-space-4); }
+  .pilot-mode .pilot-menu { grid-template-columns: minmax(0, 1fr); }
+  .pilot-mode .pilot-menu-card { padding: var(--forja-space-4); }
+  .pilot-mode .pilot-prices { grid-template-columns: minmax(0, 1fr); }
+  .pilot-mode .pilot-ai-questions li { grid-template-columns: minmax(0, 1fr); }
+  .pilot-mode .pilot-ai-lines li label { flex-basis: 100%; }
+  .pilot-mode .pilot-ai-price { flex-wrap: wrap; max-width: 100%; }
+  .pilot-mode .pilot-ai-price input { max-width: 100%; }
+  .pilot-mode :where(.pilot-ai-actions, .quote-actions) {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .pilot-mode :where(.pilot-ai-actions, .quote-actions) > button { width: 100%; }
+  .pilot-mode .forja-origin { padding: var(--forja-space-4); }
+  .pilot-mode .forja-final :where(.quote-read, .card-pad:not(.summary)) { padding: var(--forja-space-4); }
+  .pilot-mode .forja-final .quote-totals > div { flex-basis: 100%; }
+}
+
+/* Apenas os contentores de tabela já existentes são deslocáveis. */
+.pilot-mode :where(.table-scroll, .forja-table-scroll) {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pilot-mode :where(.pilot-ai-fresh, .pilot-ai-wait)::before,
+  .pilot-mode .pilot-ai-fresh {
+    animation: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .pilot-mode :where(.pilot-ai-state, .pilot-stale) {
+    border-color: CanvasText;
+  }
+}
+
+/* Mantém a apresentação impressa sem sombras. */
+@media print {
+  .pilot-mode :where(.pilot-ai, .forja-origin, .forja-final .quote-read) {
+    box-shadow: none;
+  }
+}
