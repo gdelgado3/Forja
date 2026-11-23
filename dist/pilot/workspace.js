@@ -45,7 +45,13 @@ function renderPilotWorkspace() {
   // No separador Pedido, o botão Obter orçamento fica logo a seguir aos anexos (sem espaço vazio).
   const ai=document.querySelector('#pilot-ai'),files=document.querySelector('#anexos-card');
   if(ai&&files&&tab==='pedido')files.after(ai);
+  document.querySelectorAll('textarea.desc').forEach(pilotFitDesc);
 }
+// Descrição das linhas: mostra sempre o texto inteiro (a caixa cresce com o texto); Enter termina a edição.
+function pilotFitDesc(t){t.style.height='auto';t.style.height=t.scrollHeight+2+'px';}
+document.addEventListener('input',e=>{if(e.target.matches?.('textarea.desc'))pilotFitDesc(e.target);});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.matches?.('textarea.desc')){e.preventDefault();e.target.blur();}});
+addEventListener('resize',()=>document.querySelectorAll('textarea.desc').forEach(pilotFitDesc));
 // O orçamento obtém-se em 1. Pedido; a proposta revê-se em 2. Orçamento.
 function pilotAiStage(p){if(!p||pilotAi.pid!==p.id)return 'none';if(pilotAi.loading)return 'loading';return pilotAi.data?.turns?.length?'result':'none';}
 function pilotAiPedido(p){

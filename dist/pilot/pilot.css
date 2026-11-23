@@ -954,3 +954,21 @@
 .pilot-mode .files-count.has { background:#214236; color:#d9f0c4; }
 .pilot-mode .pilot-ai-forging .pilot-ai-progress { background:none !important; border:0 !important; box-shadow:none !important; font-style:normal !important; padding:0 !important; color:#d9f0c4 !important; }
 .pilot-mode .pilot-ai-forging .pilot-ai-wait::before { display:none !important; }
+
+/* ---------- Tabela do orçamento: texto inteiro, preço nunca tapado, total em destaque ---------- */
+.pilot-mode .quote-table { font-size:15px; }
+.pilot-mode .quote-table th { font-size:12px; letter-spacing:.02em; }
+.pilot-mode .quote-table td:first-child { min-width:260px; width:38%; }
+.pilot-mode .quote-table textarea.desc { display:block; width:100%; min-height:40px; resize:none; overflow:hidden; font:inherit; font-size:15px; line-height:1.4; padding:8px 10px; border:1px solid #d6ddd6; border-radius:8px; background:#fff; white-space:pre-wrap; overflow-wrap:anywhere; }
+.pilot-mode .quote-table textarea.desc:focus { border-color:#214236; outline:2px solid #cfe7bb; }
+.pilot-mode .quote-table .line-src { font-size:13px !important; padding:2px 0 0 !important; font-weight:500 !important; color:#2f5a47; text-align:left; min-height:0 !important; }
+.pilot-mode .quote-table td.no-print:has(.pilot-conf) { min-width:200px; }
+.pilot-mode .quote-table .pilot-conf { white-space:nowrap; }
+.pilot-mode .quote-table .pilot-stale { display:block; width:max-content; max-width:220px; margin-top:6px; white-space:normal; font-size:12px; line-height:1.3; }
+.pilot-mode .quote-table td[data-total] { font-weight:700; font-variant-numeric:tabular-nums; text-align:right; }
+.pilot-mode .quote-table input[type=number], .pilot-mode .quote-table select { font-size:15px; }
+.pilot-mode .summary-grand-line { margin-top:6px; padding:14px 16px; border-radius:12px; background:#d9f0c4; color:#173226; align-items:baseline; }
+.pilot-mode .summary-grand-line span { color:#173226 !important; font-weight:700; }
+.pilot-mode .summary-grand-line strong { color:#173226 !important; font-family:Manrope,system-ui,sans-serif; font-size:26px; font-weight:800; }
+.pilot-mode .total-row.final { margin-top:8px; padding:14px 16px; border-radius:12px; background:#214236; color:#fff; font-size:20px; font-weight:800; }
+.pilot-mode .total-row.final span { color:#fff; }
