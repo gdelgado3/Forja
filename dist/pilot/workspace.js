@@ -139,6 +139,8 @@ function pilotPriceCheck(p) {
 }
 let pilotFeedback={rating:null,text:'',sent:false};
 let pilotFold={check:false,feedback:false};
+// Cronómetro da análise: só arranca quando o servidor começa mesmo a analisar; antes disso diz "a preparar".
+setInterval(()=>{const el=document.querySelector('#pilot-ai-elapsed'),st=pilotAi?.data?.started;if(!el||!st||!pilotAi.loading)return;const s=Math.max(0,Math.round((Date.now()-new Date(st))/1000));el.textContent=`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;},1000);
 // Página inicial e páginas próprias: histórico completo, avaliar orçamentos e feedback.
 let pilotPage='home';
 document.addEventListener('click',ev=>{
@@ -284,8 +286,7 @@ function pilotAiPoll(pid) {
     } catch { /* rede: tenta outra vez */ }
     const pr=document.querySelector('#pilot-ai-progress');
     if(pr && pilotAi.data?.progress && pr.textContent!==pilotAi.data.progress){pr.textContent=pilotAi.data.progress;pr.classList.remove('pilot-ai-fresh');void pr.offsetWidth;pr.classList.add('pilot-ai-fresh');}
-    const el=document.querySelector('#pilot-ai-elapsed');
-    if(el && pilotAi.data?.started){const s=Math.max(0,Math.round((Date.now()-new Date(pilotAi.data.started))/1000));el.textContent=`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;}
+    if(pilotAi.data?.started && !document.querySelector('.pilot-ai-wait')?.textContent.startsWith('Tempo'))render();
     pilotAiTimer=setTimeout(tick,2500);
   };
   pilotAiTimer=setTimeout(tick,1500);
@@ -299,12 +300,19 @@ function pilotAiHtml(p) {
   const left=d?`<small class="muted">${d.remaining} orçamento(s) disponível(eis)${d.demo?' na demonstração':' hoje'}</small>`:'';
   const err=pilotAi.error?`<p class="pilot-message" role="alert">${esc(pilotAi.error)}</p>`:'';
   const turns=d?.turns||[];
-  if(pilotAi.loading)return `<section class="card card-pad pilot-ai no-print" id="pilot-ai"><div class="card-title"><h2>Obter orçamento</h2>${left}</div><p class="pilot-ai-wait">A analisar o pedido e todos os anexos… <strong id="pilot-ai-elapsed">0:00</strong></p><p class="pilot-ai-progress" id="pilot-ai-progress" aria-live="polite">${esc(pilotAi.data?.progress||'A preparar o pedido…')}</p><p class="smalltext muted">Uma análise completa pode levar até 10 minutos. Podes continuar a trabalhar noutros pedidos: o resultado aparece aqui.</p></section>`;
+  if(pilotAi.loading){const started=pilotAi.data?.started;return `<section class="pilot-ai pilot-ai-forging no-print" id="pilot-ai" aria-busy="true">
+    <div class="pilot-forge" aria-hidden="true"><svg viewBox="0 0 160 110"><g class="pf-hammer"><rect x="92" y="10" width="8" height="46" rx="3"/><rect x="72" y="4" width="48" height="18" rx="4"/></g>
+      <path class="pf-anvil" d="M30 62 H128 C128 70 118 74 104 74 L96 74 L100 92 H58 L62 74 L44 74 C36 74 30 68 30 62 Z"/><rect class="pf-piece" x="70" y="56" width="30" height="6" rx="2"/>
+      <g class="pf-sparks"><circle cx="78" cy="54" r="1.8"/><circle cx="90" cy="52" r="1.6"/><circle cx="84" cy="50" r="1.4"/><circle cx="96" cy="54" r="1.5"/><circle cx="74" cy="52" r="1.3"/></g></svg></div>
+    <h2>A forjar o teu orçamento</h2>
+    <p class="pilot-ai-progress" id="pilot-ai-progress" aria-live="polite">${esc(pilotAi.data?.progress||'A preparar o pedido e os anexos…')}</p>
+    <p class="pilot-ai-wait">${started?'Tempo decorrido: ':''}<strong id="pilot-ai-elapsed">${started?'':'a preparar'}</strong></p>
+    <p class="smalltext">Uma análise completa pode levar alguns minutos. Podes continuar a trabalhar noutros pedidos: o resultado aparece aqui.</p>${left}</section>`;}
   if(!turns.length)return `<section class="card card-pad pilot-ai pilot-ai-cta no-print" id="pilot-ai"><div class="card-title"><h2>Obter orçamento</h2>${left}</div>
     <p>Quando o pedido e os anexos estiverem completos, carrega no botão. A Forja analisa tudo e propõe as peças, as linhas do orçamento com as contas e o que falta perguntar ao cliente. Os custos vêm do teu catálogo e podes alterá-los. Revês tudo antes de aplicar.</p>
     <label class="pilot-notes">Notas da oficina (opcional)<textarea class="field" id="pilot-notes" rows="3" maxlength="3000" placeholder="O que já sabes deste trabalho e o pedido não diz. Ex.: falei com o cliente, quer inox 316; a obra é num 3.º andar sem elevador; prazo apertado.">${esc(p.workshopNotes||'')}</textarea></label>
     <p class="smalltext muted">Telefones, emails, NIF e moradas do texto não são enviados. Nas fotos e PDFs, só as zonas que marcaste ficam tapadas.</p>${err}
-    <button type="button" class="primary" data-ai-run ${d?.remaining?'':'disabled'}>Obter orçamento →</button></section>`;
+    <button type="button" class="primary pilot-run" data-ai-run ${d?.remaining?'':'disabled'}><span class="pilot-run-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14h14c0 2-2 3-4 3h-1l1 3H7l1-3H6c-2 0-3-1-3-3z"/><path d="M14 4l5 5M12 6l4-4 5 5-4 4z"/></svg></span><span><strong>Obter orçamento</strong><small>A Forja lê o pedido e os anexos e monta o rascunho</small></span></button></section>`;
   const r=turns.at(-1).reading;
   const badge=st=>`<span class="pilot-ai-state pilot-ai-${st==='dito'?'said':st==='deduzido'?'deduced':'check'}">${esc(st)}</span>`;
   const lines=r.lines.map((l,i)=>{
