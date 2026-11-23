@@ -836,15 +836,16 @@
 .pilot-landing2 figcaption { margin-top:10px; text-align:right; font-size:12.5px; color:#6a7872; }
 
 /* O momento: o pedido aparece, o martelo bate duas vezes e o orçamento surge ao lado, linha a linha. */
-.pilot-landing2 .pl-strike { position:absolute; left:23%; top:62px; width:330px; z-index:3; pointer-events:none; opacity:0; }
-.pilot-landing2 .pl-strike svg { width:100%; height:auto; display:block; }
-.pilot-landing2 .pl-head { fill:#2b3a34; } .pilot-landing2 .pl-handle { fill:#9a7650; } .pilot-landing2 .pl-glove { fill:#d9a441; stroke:#b0822c; stroke-width:1.5; } .pilot-landing2 .pl-glove-line { fill:none; stroke:#b0822c; stroke-width:1.4; stroke-linecap:round; } .pilot-landing2 .pl-cuff { fill:#c99636; } .pilot-landing2 .pl-sleeve { fill:#214236; }
-.pilot-landing2 .pl-sp circle { fill:#f2a35b; opacity:0; }
+.pilot-landing2 .pl-strike { position:absolute; left:24%; top:70px; width:150px; z-index:3; pointer-events:none; opacity:0; }
+.pilot-landing2 .pl-strike svg { width:100%; height:auto; display:block; overflow:visible; }
+.pilot-landing2 .pl-hm rect { fill:#214236; } .pilot-landing2 .pl-hm rect:first-child { fill:#9a7650; }
+.pilot-landing2 .pl-sp circle { fill:#1f1f1c; opacity:0; } .pilot-landing2 .pl-flash { fill:#3a3a35; opacity:0; transform-box:fill-box; transform-origin:center; }
 @media (prefers-reduced-motion: no-preference) {
   .pilot-landing2 .pl-strike { animation:pl-show 1.5s linear forwards; }
-  .pilot-landing2 .pl-hm { transform-box:view-box; transform-origin:300px 96px; animation:pl-hit 1.4s cubic-bezier(.5,0,.6,1) forwards; }
-  .pilot-landing2 .pl-sp circle { animation:pl-spk 1.4s ease-out forwards; }
-  .pilot-landing2 .pl-sp circle:nth-child(1){--x:-22px;--y:-18px} .pilot-landing2 .pl-sp circle:nth-child(2){--x:-4px;--y:-28px} .pilot-landing2 .pl-sp circle:nth-child(3){--x:22px;--y:-16px} .pilot-landing2 .pl-sp circle:nth-child(4){--x:-30px;--y:-4px} .pilot-landing2 .pl-sp circle:nth-child(5){--x:30px;--y:-6px}
+  .pilot-landing2 .pl-hm { transform-box:view-box; transform-origin:128px 99px; animation:pl-hit 1.4s cubic-bezier(.5,0,.6,1) forwards; }
+  .pilot-landing2 .pl-sp circle { animation:pl-spk 1.4s cubic-bezier(.2,.7,.3,1) forwards; }
+  .pilot-landing2 .pl-sp circle:nth-of-type(1){--x:-11px;--y:-88px;animation-delay:0.04s} .pilot-landing2 .pl-sp circle:nth-of-type(2){--x:74px;--y:-37px;animation-delay:0.04s} .pilot-landing2 .pl-sp circle:nth-of-type(3){--x:2px;--y:-90px;animation-delay:0s} .pilot-landing2 .pl-sp circle:nth-of-type(4){--x:-63px;--y:-58px;animation-delay:0.02s} .pilot-landing2 .pl-sp circle:nth-of-type(5){--x:34px;--y:-97px;animation-delay:0.04s} .pilot-landing2 .pl-sp circle:nth-of-type(6){--x:-64px;--y:-36px;animation-delay:0s} .pilot-landing2 .pl-sp circle:nth-of-type(7){--x:-91px;--y:-50px;animation-delay:0.02s} .pilot-landing2 .pl-sp circle:nth-of-type(8){--x:28px;--y:-50px;animation-delay:0s} .pilot-landing2 .pl-sp circle:nth-of-type(9){--x:108px;--y:-34px;animation-delay:0.02s} .pilot-landing2 .pl-sp circle:nth-of-type(10){--x:36px;--y:-85px;animation-delay:0.04s} .pilot-landing2 .pl-sp circle:nth-of-type(11){--x:-44px;--y:-35px;animation-delay:0s} .pilot-landing2 .pl-sp circle:nth-of-type(12){--x:4px;--y:-58px;animation-delay:0s} .pilot-landing2 .pl-sp circle:nth-of-type(13){--x:-50px;--y:-48px;animation-delay:0.04s} .pilot-landing2 .pl-sp circle:nth-of-type(14){--x:-78px;--y:-28px;animation-delay:0.02s}
+  .pilot-landing2 .pl-flash { animation:pl-flash 1.4s linear forwards; }
   .pilot-landing2 .pl-sketch { animation:pl-thump 1.4s ease-out; }
   .pilot-landing2 .pl-quote { opacity:0; transform:translateY(14px); animation:pl-in .45s ease-out 1.45s forwards; }
   .pilot-landing2 .pl-quote li, .pilot-landing2 .pl-q-ask, .pilot-landing2 .pl-q-total { opacity:0; transform:translateY(6px); animation:pl-in .35s ease-out forwards; }
@@ -853,8 +854,9 @@
   .pilot-landing2 .pl-q-ask{animation-delay:2.4s} .pilot-landing2 .pl-q-total{animation-delay:2.55s}
   .pilot-landing2 figcaption { opacity:0; animation:pl-in .3s ease-out 2.6s forwards; }
   @keyframes pl-show { 0%,90%{opacity:1} 100%{opacity:0} }
-  @keyframes pl-hit { 0%{transform:rotate(22deg)} 22%{transform:rotate(22deg)} 32%{transform:rotate(-1deg)} 38%{transform:rotate(0)} 55%{transform:rotate(22deg)} 70%{transform:rotate(-1deg)} 76%{transform:rotate(0)} 100%{transform:rotate(16deg)} }
-  @keyframes pl-spk { 0%,30%{opacity:0;transform:none} 33%{opacity:1} 50%{opacity:0;transform:translate(var(--x),var(--y))} 51%,68%{opacity:0;transform:none} 71%{opacity:1} 90%{opacity:0;transform:translate(var(--x),var(--y))} 100%{opacity:0} }
+  @keyframes pl-hit { 0%{transform:rotate(40deg)} 22%{transform:rotate(40deg)} 32%{transform:rotate(-2deg)} 38%{transform:rotate(0)} 55%{transform:rotate(40deg)} 70%{transform:rotate(-2deg)} 76%{transform:rotate(0)} 100%{transform:rotate(25deg)} }
+  @keyframes pl-spk { 0%,31%{opacity:0;transform:none} 33%{opacity:1;transform:none} 58%{opacity:0;transform:translate(var(--x),var(--y)) scale(.5)} 59%,69%{opacity:0;transform:none} 71%{opacity:1;transform:none} 97%{opacity:0;transform:translate(var(--x),var(--y)) scale(.5)} 100%{opacity:0} }
+  @keyframes pl-flash { 0%,31%{opacity:0;transform:scale(.4)} 33%{opacity:.5;transform:scale(1.2)} 44%{opacity:0;transform:scale(1.8)} 69%{opacity:0;transform:scale(.4)} 71%{opacity:.5;transform:scale(1.2)} 82%,100%{opacity:0;transform:scale(1.8)} }
   @keyframes pl-thump { 0%,31%{transform:rotate(-1.6deg)} 34%{transform:rotate(-1.6deg) translateY(3px)} 40%{transform:rotate(-1.6deg)} 72%{transform:rotate(-1.6deg) translateY(3px)} 78%,100%{transform:rotate(-1.6deg)} }
   @keyframes pl-in { to { opacity:1; transform:none; } }
 }

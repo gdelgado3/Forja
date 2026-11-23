@@ -56,14 +56,7 @@ function landing(me) {
       <details class="muted smalltext pl-privacy"><summary>Privacidade</summary><p>A oficina é responsável pelos dados dos seus clientes. A Forja trata-os por conta da oficina para preparar orçamentos, com alojamento na UE e acesso limitado à equipa autorizada da oficina, da Forja e dos fornecedores contratados para prestar o serviço. Os dados pessoais ficam excluídos do treino de modelos. A Forja apaga os pedidos que não avancem até 90 dias após a receção e os restantes até 90 dias após o fecho do orçamento. O fim do piloto antecipa o apagamento, salvo obrigação legal. Para exercer direitos sobre os dados de um pedido, contacte a oficina.</p></details>
     </section>
     <figure class="pl-stage" aria-label="Exemplo: o pedido de 3 prateleiras em L em inox, a peça lida pela Forja e o rascunho do orçamento com as contas">
-      <div class="pl-strike" aria-hidden="true"><svg viewBox="0 0 300 140"><g class="pl-hm">
-  <path class="pl-sleeve" d="M196 78 L300 64 L300 124 L196 118 Z"/>
-  <rect class="pl-cuff" x="182" y="80" width="18" height="38" rx="5"/>
-  <rect class="pl-handle" x="38" y="94" width="118" height="10" rx="4"/>
-  <path class="pl-glove" d="M138 84 q4 -8 14 -6 l24 2 q10 1 10 12 l0 18 q0 10 -10 10 l-28 0 q-12 0 -12 -10 z"/>
-  <path class="pl-glove-line" d="M150 92 h22 M150 101 h24 M150 110 h22"/>
-  <rect class="pl-head" x="14" y="76" width="30" height="44" rx="5"/></g>
-  <g class="pl-sp"><circle cx="22" cy="132" r="2.6"/><circle cx="34" cy="134" r="2.2"/><circle cx="12" cy="132" r="2"/><circle cx="44" cy="132" r="2"/><circle cx="28" cy="136" r="1.8"/></g></svg></div>
+      <div class="pl-strike" aria-hidden="true"><svg viewBox="0 0 140 130"><g class="pl-hm"><rect x="38" y="94" width="92" height="10" rx="4"/><rect x="14" y="76" width="30" height="44" rx="5"/></g><g class="pl-sp"><ellipse class="pl-flash" cx="28" cy="122" rx="22" ry="7"/><circle cx="24" cy="119" r="3.5"/><circle cx="15" cy="118" r="4.3"/><circle cx="17" cy="120" r="3.6"/><circle cx="30" cy="119" r="3.9"/><circle cx="27" cy="121" r="3.6"/><circle cx="16" cy="122" r="3.9"/><circle cx="17" cy="119" r="3.5"/><circle cx="15" cy="122" r="3.2"/><circle cx="15" cy="119" r="4.6"/><circle cx="18" cy="120" r="4.6"/><circle cx="17" cy="122" r="4.3"/><circle cx="19" cy="118" r="4.0"/><circle cx="20" cy="120" r="3.2"/><circle cx="16" cy="122" r="3.1"/></g></svg></div>
       <div class="pl-sketch" aria-hidden="true">
         <p class="pl-sketch-text">Boa tarde, preciso de 3 prateleiras em L para a cozinha, em inox. Medidas no desenho.</p>
         <svg viewBox="0 0 440 236" role="presentation">
