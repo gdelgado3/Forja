@@ -472,7 +472,7 @@ function pilotAiApply(p) {
   r.lines.forEach((x,i)=>{
     if(pilotAi.off.has(i))return;
     const q=pilotAi.qty[i]!==undefined?Number(pilotAi.qty[i]):x.qty, st=pilotAi.confirmed.has(i)?'confirmado pela oficina':x.state;
-    const line={id:uid(),desc:x.desc,qty:Math.round((Number.isFinite(q)?q:0)*1000)/1000,unit:x.unit,price:0,source:`Leitura do pedido (${st}) · ${x.basis}`.slice(0,400)};
+    const line={id:uid(),desc:x.desc,qty:Math.round((Number.isFinite(q)?q:0)*1000)/1000,unit:x.unit,price:0,source:`Leitura do pedido (${st}) · ${x.basis}`.slice(0,2400)};
     if(!(line.qty>0))zero++;
     const m=pilotAiMatch(x),edited=pilotAi.prices[i];
     if(edited!==undefined && edited!==null){line.price=edited;line.match={label:m.label,score:m.score,manual:true,applied:false};}
@@ -828,18 +828,20 @@ function pilotBestMatch(desc) {
   return best||null;
 }
 function pilotAutoPrice(line,{withUnit=false,keepSource=false}={}) {
+  // Nunca apaga a explicação da leitura: o preço do catálogo junta-se a ela.
+  const setSrc=txt=>{if(keepSource)return;const base=String(line.source||'').split(' · Preço: ')[0];line.source=/^Leitura do pedido/.test(base)?base+' · Preço: '+txt:txt;};
   const best=pilotBestMatch(line.desc);
-  const hourly=()=>{line.price=Number(state.settings.hour)||0;if(!keepSource)line.source='Custo por hora da oficina';line.match={label:'',score:0,manual:false,applied:true,hourly:true};return 'applied';};
+  const hourly=()=>{line.price=Number(state.settings.hour)||0;setSrc('Custo por hora da oficina');line.match={label:'',score:0,manual:false,applied:true,hourly:true};return 'applied';};
   if((!best || best.score<60 || (best.row.unit!==line.unit && !withUnit)) && line.unit==='h')return hourly();
   if(!best){line.match={label:'',score:0,manual:false,applied:false};return 'none';}
   if(best.score<60){
     // Se o custo vinha de outro artigo do catálogo, deixa de valer: fica por indicar.
-    if(line.match?.applied && !line.match.manual){line.price=0;line.source='Por indicar · sem artigo correspondente no catálogo';}
+    if(line.match?.applied && !line.match.manual){line.price=0;setSrc('Por indicar · sem artigo correspondente no catálogo');}
     line.match={label:best.row.label,score:best.score,manual:false,applied:false};return 'low';
   }
   line.price=best.row.price;
   if(withUnit)line.unit=best.row.unit;
-  if(!keepSource)line.source=`Catálogo da oficina · ${best.row.label}`;
+  setSrc(`Catálogo da oficina · ${best.row.label}`);
   line.match={label:best.row.label,score:best.score,manual:false,applied:true};
   return 'applied';
 }

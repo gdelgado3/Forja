@@ -82,7 +82,7 @@ export function normalizeReading(input) {
   const state = v => states.has(v) ? v : 'a confirmar';
   const lines = list(input.linhas, 60).map(l => ({
     desc: str(l?.descricao, 180), qty: Number(l?.quantidade), unit: l?.unidade, kind: str(l?.tipo, 20) || 'material',
-    basis: str(l?.conta, 400), state: state(l?.estado),
+    basis: str(l?.conta, 2000), state: state(l?.estado),
   })).filter(l => l.desc && Number.isFinite(l.qty) && l.qty >= 0 && l.qty < 1e7 && units.has(l.unit));
   return {
     reply: str(input.resposta, 2000),
