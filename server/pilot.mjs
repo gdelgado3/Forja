@@ -54,6 +54,18 @@ async function readBody(req, limit) {
   requireValue(length <= limit, 'O ficheiro ou pedido excede o limite.', 413);
   return Buffer.concat(chunks);
 }
+// Modelo do orçamento: campos de texto com limites, cor em hex e logótipo PNG/JPEG/WebP em data URL até ~300 KB.
+export function quoteTemplate(t = {}) {
+  const txt = (v, n) => typeof v === 'string' ? v.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').trim().slice(0, n) : '';
+  const logo = typeof t.logo === 'string' && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(t.logo) && t.logo.length <= 400_000 ? t.logo : '';
+  const color = typeof t.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(t.color) ? t.color.toLowerCase() : '#214236';
+  const layout = ['classico', 'moderno', 'compacto'].includes(t.layout) ? t.layout : 'classico';
+  const days = Math.min(365, Math.max(0, Math.round(Number(t.validity) || 30)));
+  return { company: txt(t.company, 120), nif: txt(t.nif, 30), address: txt(t.address, 300), contacts: txt(t.contacts, 200), logo, color, layout, validity: days,
+    payment: txt(t.payment, 600), delivery: txt(t.delivery, 300), notes: txt(t.notes, 1500), footer: txt(t.footer, 300),
+    showSource: t.showSource === true, showUnit: t.showUnit !== false, updated: new Date().toISOString() };
+}
+
 async function jsonBody(req, limit = 128 * 1024) {
   const raw = await readBody(req, limit);
   let data;
@@ -490,7 +502,7 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
           }
           const input=await jsonBody(req);
           const latest=workshopLookup.get(office.id),state=JSON.parse(latest.state);
-          state.settings={...priceSettings(office.name,input),privacy:state.settings.privacy,houseRules:state.settings.houseRules};
+          state.settings={...priceSettings(office.name,input),privacy:state.settings.privacy,houseRules:state.settings.houseRules,template:state.settings.template};
           db.prepare('UPDATE workshops SET state=?,revision=revision+1 WHERE id=?').run(JSON.stringify(state),office.id);
           return reply(res,{ok:true});
         }
@@ -519,6 +531,14 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
           db.prepare('INSERT INTO responses VALUES(?,?,?,NULL,NULL,NULL,?,?)').run(token().slice(0,32),auth.workshop,'exemplo',
             'Rascunho de exemplo pronto: 3 prateleiras em L, 1,04 m² de chapa inox de 2 mm. Falta saber a espessura e a fixação à parede. Vê o separador 3. Orçamento.',time());
         return reply(res,{revision:office.revision+1});
+      }
+      if(path==='/api/pilot/template' && req.method==='PUT') {
+        // Modelo do orçamento da oficina (cabeçalho, logótipo, cor, condições). Só texto curto e uma imagem pequena.
+        const input=await jsonBody(req,420*1024);
+        const office=workshopLookup.get(auth.workshop),state=JSON.parse(office.state);
+        state.settings={...state.settings,template:quoteTemplate(input)};
+        db.prepare('UPDATE workshops SET state=?,last_use=? WHERE id=?').run(JSON.stringify(state),time(),office.id);
+        return reply(res,{template:state.settings.template});
       }
       if(path==='/api/pilot/settings' && req.method==='PUT') {
         // A própria oficina muda o custo por hora, o acréscimo e o IVA; catálogo e zonas ficam como estão.

@@ -364,7 +364,8 @@ async function workshop() {
     responses:[],
     sendFeedback:data=>post('/feedback',data),
     saveCatalog:async catalog=>(await api('/catalog',{method:'PUT',json:{catalog}})).catalog,
-    savePrices:async prices=>(await api('/settings',{method:'PUT',json:prices})).settings
+    savePrices:async prices=>(await api('/settings',{method:'PUT',json:prices})).settings,
+    saveTemplate:async tpl=>(await api('/template',{method:'PUT',json:tpl})).template
   };
   async function loadResponses() {
     try {
