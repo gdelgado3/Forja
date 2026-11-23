@@ -733,3 +733,30 @@
     box-shadow: none;
   }
 }
+
+/* Compacto: sem scroll extra no portátil. Alvos de 44 px só em ecrãs de toque. */
+@media (pointer: fine) {
+  .pilot-mode :where(button, input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), select),
+  .pilot-mode :where(.pilot-header button, .pilot-content .heading button, .back-button),
+  .pilot-mode .pilot-ai-price input,
+  .pilot-mode .pilot-ai-lines li label,
+  .pilot-mode .forja-secondary-action,
+  .pilot-mode :where(.pilot-why summary, .pilot-ai summary),
+  .pilot-mode .pilot-show { min-height: 36px; }
+  .pilot-mode .forja-main-action { min-height: 40px; }
+  .pilot-mode :where(.pilot-file, .forja-origin a) { min-height: 0; }
+}
+.pilot-mode .pilot-ai-lines li { padding: var(--forja-space-2) 0; }
+.pilot-mode .pilot-ai-lines li label { padding: 4px 0; }
+.pilot-mode .pilot-content :where(h2, .pilot-drawing > h3, .pilot-general h3, .pilot-ai h3, .quote-read h3) { margin: var(--forja-space-3) 0 var(--forja-space-2); font-size: 18px; }
+.pilot-mode .pilot-office { padding: var(--forja-space-4) var(--forja-space-5) var(--forja-space-5); }
+.pilot-mode .pilot-ai-questions li { padding: var(--forja-space-2) 0; }
+.pilot-mode .pilot-ai-table :where(th, td) { padding: var(--forja-space-2); }
+.pilot-mode .heading h1 { font-size: 26px; }
+.pilot-mode .card-title :where(h2, h3) { margin: 0; }
+.pilot-mode .quote-table :where(input, select) { min-height: 0; }
+.pilot-mode .quote-table :where(th, td) { padding-top: 6px; padding-bottom: 6px; }
+.pilot-mode .quote-table button { min-height: 0; }
+.pilot-mode .pilot-answers { padding-top: 16px; padding-bottom: 16px; }
+.pilot-mode .pilot-answers h2 { margin-top: 0; }
+.pilot-mode .pilot-answers li { padding: 8px 12px; }
