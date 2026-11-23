@@ -97,7 +97,7 @@ function pilotPriceCheck(p) {
   const draft=calc(p).subtotal, actual=Number(p.actualPrice);
   const diff=actual>0?Math.round((draft-actual)/actual*100):null;
   const diffText=diff===null?'':`<p class="pilot-diff ${diff<-2?'pilot-under':diff>2?'pilot-over':'pilot-ok'}">Rascunho ${euro(draft)} · preço final ${euro(actual)} · <strong>${diff>0?'+':''}${diff}%</strong> (${diff<-2?'abaixo':diff>2?'acima':'certo'})</p>`;
-  return `<section class="card card-pad pilot-check no-print"><h2>Avaliar orçamento</h2>
+  return `<section class="card card-pad pilot-check no-print"><details data-fold="check"${pilotFold.check?' open':''}><summary><h2>Avaliar orçamento</h2><span class="smalltext muted">Compara o rascunho com o preço final</span></summary>
     <p class="smalltext muted">O rascunho da Forja ficou…</p>
     <div class="pilot-check-options" role="group" aria-label="Avaliar o preço do rascunho">${options.map(([key,label,title])=>
       `<button type="button" data-price-check="${key}" title="${title}" aria-pressed="${p.priceCheck===key}" class="${p.priceCheck===key?'chosen pilot-'+key:''}">${p.priceCheck===key?'✓ ':''}${label}</button>`).join('')}</div>
@@ -108,9 +108,11 @@ function pilotPriceCheck(p) {
     ${diffText}
     <button type="button" class="primary" data-price-save>Guardar avaliação</button>
     ${p.checkSaved?`<span class="smalltext muted"> Guardada a ${new Date(p.checkSaved).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}.</span>`:''}
-    <p class="smalltext muted">${p.priceCheck==='under'?'Abaixo do preço certo: é o erro mais caro para a oficina. A Forja aprende a arredondar para cima.':'Ajuda a Forja a nunca orçar abaixo do custo.'}</p></section>`;
+    <p class="smalltext muted">${p.priceCheck==='under'?'Abaixo do preço certo: é o erro mais caro para a oficina. A Forja aprende a arredondar para cima.':'Ajuda a Forja a nunca orçar abaixo do custo.'}</p></details></section>`;
 }
 let pilotFeedback={rating:null,text:'',sent:false};
+let pilotFold={check:false,feedback:false};
+document.addEventListener('toggle',e=>{const d=e.target;if(d?.dataset?.fold)pilotFold[d.dataset.fold]=d.open},true);
 let pilotQuick={rating:null,closed:false};
 // ---------- Leitura com IA ----------
 const pilotAi={pid:null,loading:false,error:'',data:null,off:new Set(),applied:{},prices:{},answers:{},fromClient:{},asks:[],qty:{},confirmed:new Set(),scope:{}};
@@ -470,10 +472,10 @@ document.addEventListener('click',async ev=>{
 });
 function pilotFeedbackHtml() {
   if(pilotFeedback.sent)return '<section class="card card-pad pilot-feedback no-print"><h2>Obrigado pelo feedback!</h2><p>A equipa da Forja vai ler.</p><button type="button" class="small" data-feedback-again>Enviar mais</button></section>';
-  return `<section class="card card-pad pilot-feedback no-print"><h2>O que achaste da Forja?</h2>
+  return `<section class="card card-pad pilot-feedback no-print"><details data-fold="feedback"${pilotFold.feedback?' open':''}><summary><h2>O que achaste da Forja?</h2><span class="smalltext muted">Um minuto, ajuda-nos muito</span></summary>
     <div class="pilot-rating" role="group" aria-label="Nota de 1 a 5">${[1,2,3,4,5].map(n=>`<button type="button" data-feedback-rating="${n}" aria-pressed="${pilotFeedback.rating===n}" class="${pilotFeedback.rating===n?'chosen':''}">${n}</button>`).join('')}<small>1 = não usava · 5 = usava já</small></div>
     <textarea class="field" id="pilot-feedback-text" rows="3" maxlength="2000" placeholder="O que falta? O que não percebeste? O que mudavas?">${esc(pilotFeedback.text)}</textarea>
-    <button type="button" class="primary" data-feedback-send>Enviar feedback</button></section>`;
+    <button type="button" class="primary" data-feedback-send>Enviar feedback</button></details></section>`;
 }
 function pilotExampleProject() {
   const t=now();
@@ -501,7 +503,7 @@ document.addEventListener('input',event=>{
 document.addEventListener('click',async ev=>{
   const target=ev.target.closest('[data-pilot-example],[data-price-check],[data-feedback-rating],[data-feedback-send],[data-feedback-again],[data-price-save],[data-pilot-catalog],[data-pilot-catalog-save],[data-pilot-autoprice],[data-pilot-history],[data-pilot-drawing],[data-pilot-drawing-send],[data-pilot-feedback-go]');
   if(!target)return;
-  if(target.hasAttribute('data-pilot-feedback-go')) {document.querySelector('.pilot-feedback')?.scrollIntoView({behavior:'smooth'});document.querySelector('#pilot-feedback-text')?.focus({preventScroll:true});return;}
+  if(target.hasAttribute('data-pilot-feedback-go')) {if(!pilotFold.feedback){pilotFold.feedback=true;render();}document.querySelector('.pilot-feedback')?.scrollIntoView({behavior:'smooth'});document.querySelector('#pilot-feedback-text')?.focus({preventScroll:true});return;}
   if(target.hasAttribute('data-pilot-catalog')) {
     const rows=(state.settings.catalog||[]).map(x=>[x.label,x.unit,String(x.price).replace('.',','),x.date?x.date.split('-').reverse().join('/'):'',x.supplier||''].join(';').replace(/;+$/,'')).join('\n');
     modal(`${modalHead('Preços e catálogo da empresa','Valores gerais em cima. Artigos em baixo, um por linha: nome; unidade; custo; data da cotação; fornecedor (os dois últimos são opcionais). A Forja usa estes custos no orçamento, diz a confiança de cada correspondência e avisa quando a cotação está velha.')}

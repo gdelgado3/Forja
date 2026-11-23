@@ -760,3 +760,10 @@
 .pilot-mode .pilot-answers { padding-top: 16px; padding-bottom: 16px; }
 .pilot-mode .pilot-answers h2 { margin-top: 0; }
 .pilot-mode .pilot-answers li { padding: 8px 12px; }
+/* Cartões de avaliação e feedback fechados por omissão (menos scroll na demo). */
+.pilot-mode details[data-fold] > summary { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; cursor:pointer; list-style:none; }
+.pilot-mode details[data-fold] > summary::-webkit-details-marker { display:none; }
+.pilot-mode details[data-fold] > summary h2 { margin:0; }
+.pilot-mode details[data-fold] > summary h2::before { content:'▸'; display:inline-block; width:1.1em; color:var(--forja-muted); transition:transform .15s; }
+.pilot-mode details[data-fold][open] > summary h2::before { transform:rotate(90deg); }
+.pilot-mode details[data-fold][open] > summary { margin-bottom:12px; }
