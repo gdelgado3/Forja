@@ -69,7 +69,9 @@ export const SCHEMA = {
 const TOOL = { name: 'registar_leitura', description: 'Regista a leitura do pedido para a oficina rever.', input_schema: SCHEMA };
 
 export const cleanAsk = (text, project) => pseudonymize(redactText(String(text || '').slice(0, 2000)).text, project);
-const str = (v, max = 500) => typeof v === 'string' ? redactText(v.slice(0, max)).text : '';
+// O modelo às vezes devolve escapes JSON literais (ex.: "rev\\u00eaem"); repõe os caracteres.
+const unescapeU = (v) => v.replace(/\\u([0-9a-fA-F]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+const str = (v, max = 500) => typeof v === 'string' ? redactText(unescapeU(v).slice(0, max)).text : '';
 const list = (v, n = 40) => Array.isArray(v) ? v.slice(0, n) : [];
 const units = new Set(['un', 'm', 'm²', 'm³', 'kg', 'h']);
 const states = new Set(['dito', 'deduzido', 'a confirmar']);

@@ -147,7 +147,9 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
     const row=db.prepare('SELECT turns FROM ai_threads WHERE workshop=? AND project=?').get(workshop,project);
     return row?JSON.parse(row.turns):[];
   };
-  const aiPublic=turns=>turns.map(t=>({ask:t.ask,at:t.at,reading:t.reading}));
+  // Leituras antigas podem ter escapes literais (\\u00ea): corrige ao mostrar.
+  const fixU=x=>typeof x==='string'?x.replace(/\\u([0-9a-fA-F]{4})/g,(_,h)=>String.fromCharCode(parseInt(h,16))):Array.isArray(x)?x.map(fixU):x&&typeof x==='object'?Object.fromEntries(Object.entries(x).map(([k,v])=>[k,fixU(v)])):x;
+  const aiPublic=turns=>turns.map(t=>({ask:fixU(t.ask),at:t.at,reading:fixU(t.reading)}));
   const setupToken = db.prepare("SELECT 1 FROM users WHERE role='admin'").get() ? null : (setupCode || token());
   const setupExpires = setupCode ? Infinity : Date.now()+15*60*1000;
   const demoStarts = [];
