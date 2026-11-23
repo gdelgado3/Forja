@@ -248,7 +248,12 @@ document.addEventListener('click',e=>{if(e.target.closest?.('[data-action="tab"]
 document.addEventListener('click',e=>{const b=e.target.closest?.('[data-ai-review]');if(!b)return;e.preventDefault();pilotReview=b.dataset.aiReview==='1';tab='orcamento';render();scrollTo({top:0});});
 document.addEventListener('click',e=>{const b=e.target.closest?.('[data-ai-sec]');if(!b)return;e.preventDefault();pilotAiSec=b.dataset.aiSec;document.querySelectorAll('.pilot-ai-sec').forEach(x=>x.hidden=x.dataset.sec!==pilotAiSec);document.querySelectorAll('[data-ai-sec]').forEach(x=>{const on=x.dataset.aiSec===pilotAiSec;x.classList.toggle('on',on);x.setAttribute('aria-pressed',on);});document.querySelector('.pilot-ai-nav')?.scrollIntoView({behavior:'smooth',block:'nearest'});});
 // Cronómetro da análise: só arranca quando o servidor começa mesmo a analisar; antes disso diz "a preparar".
-setInterval(()=>{const el=document.querySelector('#pilot-ai-elapsed'),st=pilotAi?.data?.started;if(!el||!st||!pilotAi.loading)return;const s=Math.max(0,Math.round((Date.now()-new Date(st))/1000));el.textContent=`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;},1000);
+// Se o relógio do computador estiver atrasado em relação ao servidor, conta a partir do momento em que este navegador viu a análise começar.
+let pilotAiSeen={st:null,at:0};
+setInterval(()=>{const el=document.querySelector('#pilot-ai-elapsed'),st=pilotAi?.data?.started;if(!el||!st||!pilotAi.loading)return;
+  if(pilotAiSeen.st!==st)pilotAiSeen={st,at:Date.now()};
+  let ms=Date.now()-new Date(st);const local=Date.now()-pilotAiSeen.at;if(!(ms>=local-1500)||ms>6*3600e3)ms=local;
+  const s=Math.max(0,Math.round(ms/1000));el.textContent=`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;},1000);
 // Página inicial e páginas próprias: histórico completo, avaliar orçamentos e feedback.
 let pilotPage='home';
 document.addEventListener('click',ev=>{
