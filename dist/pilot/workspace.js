@@ -5,31 +5,42 @@ function renderPilotWorkspace() {
   if(tab==='interpretar')tab='pedido';
   const isDetail=view==='detail';
   const projectsHtml=()=>{
-    const filtered=state.projects.filter(p=>(p.name+' '+p.client+' '+p.code).toLowerCase().includes(query.toLowerCase()));
-    const drawings=state.projects.filter(p=>p.kind==='desenho').length;
     const icon=d=>`<svg class="pilot-menu-icon" viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+    const back='<button type="button" class="pilot-back" data-pilot-page="home">← Voltar à página inicial</button>';
+    const rated=state.projects.filter(p=>p.lines.length);
+    if(pilotPage==='history'){
+      const filtered=state.projects.filter(p=>(p.name+' '+p.client+' '+p.code).toLowerCase().includes(query.toLowerCase()));
+      return `${back}<div class="heading"><div><h1>Histórico</h1><p>${state.projects.length} orçamento(s) guardado(s) nesta oficina.</p></div></div>
+      ${state.projects.length?`<div class="toolbar"><input class="field search" id="project-search" placeholder="Procurar projeto ou cliente…" value="${esc(query)}" aria-label="Procurar orçamentos"></div>
+      <div class="card table-scroll"><table class="project-list"><thead><tr><th>Projeto / Cliente</th><th>Estado</th><th>Valor sem IVA</th><th>Memória</th><th></th></tr></thead><tbody id="project-rows">${projectRows(filtered)}</tbody></table></div>`:'<div class="card card-pad"><p>Ainda não há orçamentos.</p></div>'}`;
+    }
+    if(pilotPage==='avaliar'){
+      return `${back}<div class="heading"><div><h1>Avaliar orçamentos</h1><p>Compara o rascunho da Forja com o preço que enviaste ao cliente. É assim que a Forja aprende os teus preços.</p></div></div>
+      ${rated.length?`<div class="pilot-rate-list">${rated.map(p=>`<button type="button" class="pilot-rate-row" data-pilot-rate="${p.id}"><span><strong>${esc(p.name)}</strong><small>${esc(p.client||'Sem cliente')}</small></span><span class="pilot-rate-val">${euro(calc(p).subtotal)}</span><span class="pilot-rate-state ${p.priceCheck?'done pilot-'+p.priceCheck:''}">${p.priceCheck==='ok'?'Certo':p.priceCheck==='under'?'Abaixo':p.priceCheck==='over'?'Acima':'Por avaliar'}</span></button>`).join('')}</div>`:'<div class="card card-pad"><p>Ainda não há orçamentos com linhas para avaliar.</p></div>'}`;
+    }
+    if(pilotPage==='feedback')return `${back}${pilotFeedbackHtml()}`;
+    const recent=state.projects.slice(0,3);
     return `<div class="heading"><div><h1>A tua oficina</h1><p>Do pedido do cliente ao orçamento. Escolhe por onde começar.</p></div></div>
-    ${window.forjaPilot.demo&&!state.projects.some(p=>p.id==='exemplo')?`<button type="button" class="pilot-try-example" data-pilot-example><span class="pilot-try-badge">Começa aqui</span><strong>Experimentar com um pedido de exemplo</strong><small>Abre um pedido já lido pela Forja, com o rascunho do orçamento pronto. Demora 10 segundos.</small><span class="pilot-try-arrow" aria-hidden="true">→</span></button>`:''}
+    ${window.forjaPilot.demo&&!state.projects.some(p=>p.id==='exemplo')?`<button type="button" class="pilot-try-example" data-pilot-example><span class="pilot-try-badge">Começa aqui</span><strong>Simular com um pedido de exemplo</strong><small>Vê a Forja ler um pedido de prateleiras em inox e montar o orçamento, com as contas. Demora 10 segundos.</small><span class="pilot-try-arrow" aria-hidden="true">→</span></button>`:''}
     <div class="pilot-menu">
       <button type="button" class="pilot-menu-card pilot-menu-main" data-action="new">${icon('<path d="M12 5v14M5 12h14"/>')}<strong>Novo orçamento</strong><small>Cola o pedido ou junta o desenho e monta o rascunho.</small></button>
-      <button type="button" class="pilot-menu-card" data-pilot-history>${icon('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>')}<strong>Histórico</strong><small>${state.projects.length?state.projects.length+' orçamento(s) guardado(s) nesta oficina.':'Os teus orçamentos ficam guardados aqui.'}</small></button>
-      <button type="button" class="pilot-menu-card" data-pilot-catalog>${icon('<path d="M4 6h16M4 12h16M4 18h10"/>')}<strong>Preços e catálogo</strong><small>${String(state.settings.hour).replace('.',',')} €/h · acréscimo ${String(state.settings.markup).replace('.',',')} % · ${(state.settings.catalog||[]).length} artigo(s). Os custos do orçamento vêm daqui.</small></button>
-      ${window.forjaPilot.demo?`<button type="button" class="pilot-menu-card" data-pilot-feedback-go>${icon('<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>')}<strong>Dar feedback</strong><small>Diz-nos o que achaste e o que mudavas. Demora um minuto.</small></button>`:
-      `<button type="button" class="pilot-menu-card" data-pilot-drawing>${icon('<path d="M3 17l14-14 4 4L7 21H3z"/><path d="M14 6l4 4M5 15l2 2M8 12l2 2M11 9l2 2"/>')}<strong>Pedir desenho técnico</strong><small>${drawings?drawings+' pedido(s) de desenho enviado(s).':'Envia a folha de medidas e as fotos e recebe o alçado cotado.'}</small></button>`}
+      <button type="button" class="pilot-menu-card" data-pilot-page="history">${icon('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>')}<strong>Histórico</strong><small>${state.projects.length?state.projects.length+' orçamento(s) guardado(s).':'Os teus orçamentos ficam guardados aqui.'}</small></button>
+      <button type="button" class="pilot-menu-card" data-pilot-catalog>${icon('<path d="M4 6h16M4 12h16M4 18h10"/>')}<strong>Preços e catálogo</strong><small>${String(state.settings.hour).replace('.',',')} €/h, acréscimo ${String(state.settings.markup).replace('.',',')} %, ${(state.settings.catalog||[]).length} artigo(s).</small></button>
+      <button type="button" class="pilot-menu-card" data-pilot-page="avaliar">${icon('<path d="M4 20h16"/><path d="M7 16l3-4 3 2 4-6"/>')}<strong>Avaliar orçamentos</strong><small>${rated.filter(p=>p.priceCheck).length} de ${rated.length} avaliado(s). Compara o rascunho com o preço final.</small></button>
+      <button type="button" class="pilot-menu-card" data-pilot-page="feedback">${icon('<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>')}<strong>Dar feedback</strong><small>Diz-nos o que achaste e o que mudavas. Demora um minuto.</small></button>
     </div>
     ${pilotToolsHtml()}
-    <section id="pilot-history"><h2>Histórico</h2>
-    ${state.projects.length?`<div class="toolbar"><input class="field search" id="project-search" placeholder="Procurar projeto ou cliente…" value="${esc(query)}" aria-label="Procurar orçamentos"></div>
-    <div class="card table-scroll"><table class="project-list"><thead><tr><th>Projeto / Cliente</th><th>Estado</th><th>Valor sem IVA</th><th>Memória</th><th></th></tr></thead><tbody id="project-rows">${projectRows(filtered)}</tbody></table></div>`:
+    <section id="pilot-history"><div class="pilot-history-head"><h2>Últimos orçamentos</h2>${state.projects.length>3?`<button type="button" class="small" data-pilot-page="history">Ver todos (${state.projects.length})</button>`:''}</div>
+    ${recent.length?`<div class="card table-scroll"><table class="project-list"><thead><tr><th>Projeto / Cliente</th><th>Estado</th><th>Valor sem IVA</th><th>Memória</th><th></th></tr></thead><tbody>${projectRows(recent)}</tbody></table></div>`:
     '<div class="card card-pad"><p>Ainda não há orçamentos. Os que criares ficam guardados aqui, com as versões e a memória de cada obra.</p></div>'}
     ${window.forjaPilot.demo||state.projects.some(p=>p.id==='exemplo')?'':'<p class="pilot-example-link"><button type="button" class="small" data-pilot-example>Experimentar com um pedido de exemplo</button></p>'}</section>`;
   };
   $('#app').innerHTML=`<div class="pilot-office"><header class="pilot-header no-print"><div class="pilot-brand"><span>f</span> Forja</div>
     <strong>${esc(state.settings.company)}</strong><div class="pilot-header-actions">
-    ${isDetail?'<button data-action="nav" data-view="projects">Orçamentos anteriores</button>':''}
+    ${isDetail||pilotPage!=='home'?'<button data-pilot-page="home">Página inicial</button>':''}
     <button data-action="export">Exportar cópia</button><button data-pilot-action="logout">Sair</button></div></header>
     <main class="pilot-content"><div class="pilot-sync no-print" id="pilot-save-status" role="status">${esc(window.forjaPilot.status())}</div>
-    ${pilotQuickHtml()}<section id="pilot-responses" class="no-print"></section>${isDetail&&tab==='orcamento'?pilotAiTop(project()):''}${isDetail?detail(project()):projectsHtml()}${isDetail&&tab==='pedido'?pilotAiPedido(project()):''}${isDetail?pilotPriceCheck(project()):''}${pilotFeedbackHtml()}</main></div>`;
+    ${pilotQuickHtml()}<section id="pilot-responses" class="no-print"></section>${isDetail&&tab==='orcamento'?pilotAiTop(project()):''}${isDetail?detail(project()):projectsHtml()}${isDetail&&tab==='pedido'?pilotAiPedido(project()):''}${isDetail?pilotPriceCheck(project()):''}</main></div>`;
   renderPilotResponses();
   // No separador Pedido, o botão Obter orçamento fica logo a seguir aos anexos (sem espaço vazio).
   const ai=document.querySelector('#pilot-ai'),files=document.querySelector('#anexos-card');
@@ -128,6 +139,14 @@ function pilotPriceCheck(p) {
 }
 let pilotFeedback={rating:null,text:'',sent:false};
 let pilotFold={check:false,feedback:false};
+// Página inicial e páginas próprias: histórico completo, avaliar orçamentos e feedback.
+let pilotPage='home';
+document.addEventListener('click',ev=>{
+  const pg=ev.target.closest?.('[data-pilot-page]');
+  if(pg){ev.preventDefault();pilotPage=pg.dataset.pilotPage;if(pilotPage==='feedback')pilotFold.feedback=true;view='projects';render();scrollTo({top:0});return;}
+  const rt=ev.target.closest?.('[data-pilot-rate]');
+  if(rt){ev.preventDefault();selected=rt.dataset.pilotRate;view='detail';tab='orcamento';pilotFold.check=true;render();setTimeout(()=>document.querySelector('.pilot-check')?.scrollIntoView({behavior:'smooth',block:'start'}),60);}
+});
 // Explicações de texto (origem, contas, ajudas) ocultas por omissão; preferência só deste navegador.
 // A origem completa de cada linha abre em "ver origem"; na impressão aparece por inteiro.
 document.body.classList.add('hide-explain');
@@ -445,12 +464,13 @@ function pilotQuickHtml() {
 function pilotToolsHtml() {
   const zones=window.forjaPilot.privacyZones();
   const link=window.forjaPilot.formLink;
-  return `<section class="card card-pad pilot-tools no-print">
-    ${link?`<div><h2>Link para os teus clientes</h2><p class="smalltext muted">Manda este link por WhatsApp ou email. O cliente preenche o pedido e junta fotos; o pedido aparece aqui sozinho.</p>
-      <div class="pilot-link-row"><input class="field" id="pilot-form-link" readonly value="${esc(link)}" aria-label="Link do formulário"><button type="button" class="small" data-pilot-form-copy>Copiar</button></div>
-      <p class="smalltext muted" id="pilot-form-copied" role="status"></p></div>`:''}
-    <div><h2>Proteger dados dos clientes</h2><p class="smalltext muted">${zones?`${zones} zona(s) tapada(s) em todas as fotos e PDFs, no teu aparelho, antes de enviar.`:'Marca onde ficam o nome, a morada e o NIF nas tuas folhas. A Forja tapa essas zonas antes de enviar.'} Telefones, emails, NIF e códigos postais escritos no texto são sempre tapados.</p>
-      <button type="button" class="small" data-pilot-privacy>${zones?'Alterar zonas':'Marcar zonas'}</button></div></section>`;
+  return `<section class="pilot-client-card no-print">
+    <div class="pilot-client-copy"><h2>Link para os teus clientes</h2>
+      <p>Manda por WhatsApp ou email. O cliente descreve o trabalho e junta fotos, e o pedido aparece aqui sozinho, pronto para orçamentar.</p></div>
+    ${link?`<div class="pilot-client-link"><div class="pilot-link-row"><input class="field" id="pilot-form-link" readonly value="${esc(link)}" aria-label="Link do formulário"><button type="button" class="primary" data-pilot-form-copy>Copiar link</button></div>
+      <p class="smalltext" id="pilot-form-copied" role="status"></p></div>`:''}
+    <button type="button" class="pilot-client-privacy" data-pilot-privacy>${zones?`Dados dos clientes protegidos: ${zones} zona(s) tapada(s). Alterar`:'Proteger dados dos clientes nas fotos e PDFs'}</button>
+  </section>`;
 }
 document.addEventListener('submit',async ev=>{
   const f=ev.target.closest?.('[data-pilot-prices]');
@@ -526,7 +546,7 @@ document.addEventListener('input',event=>{
 document.addEventListener('click',async ev=>{
   const target=ev.target.closest('[data-pilot-example],[data-price-check],[data-feedback-rating],[data-feedback-send],[data-feedback-again],[data-price-save],[data-pilot-catalog],[data-pilot-catalog-save],[data-pilot-autoprice],[data-pilot-history],[data-pilot-drawing],[data-pilot-drawing-send],[data-pilot-feedback-go]');
   if(!target)return;
-  if(target.hasAttribute('data-pilot-feedback-go')) {if(!pilotFold.feedback){pilotFold.feedback=true;render();}document.querySelector('.pilot-feedback')?.scrollIntoView({behavior:'smooth'});document.querySelector('#pilot-feedback-text')?.focus({preventScroll:true});return;}
+  if(target.hasAttribute('data-pilot-feedback-go')) {if(pilotPage!=='feedback'||view!=='projects'){pilotFold.feedback=true;pilotPage='feedback';view='projects';render();}document.querySelector('.pilot-feedback')?.scrollIntoView({behavior:'smooth'});document.querySelector('#pilot-feedback-text')?.focus({preventScroll:true});return;}
   if(target.hasAttribute('data-pilot-catalog')) {
     const rows=(state.settings.catalog||[]).map(x=>[x.label,x.unit,String(x.price).replace('.',','),x.date?x.date.split('-').reverse().join('/'):'',x.supplier||''].join(';').replace(/;+$/,'')).join('\n');
     modal(`${modalHead('Preços e catálogo da empresa','Valores gerais em cima. Artigos em baixo, um por linha: nome; unidade; custo; data da cotação; fornecedor (os dois últimos são opcionais). A Forja usa estes custos no orçamento, diz a confiança de cada correspondência e avisa quando a cotação está velha.')}
@@ -600,7 +620,7 @@ document.addEventListener('click',async ev=>{
     persist();render();toast(`${filled} linha(s) preenchida(s) com o catálogo.`+(low?` ${low} sem correspondência: revê à mão.`:''));
     return;
   }
-  if(target.hasAttribute('data-pilot-history')) {document.querySelector('#pilot-history')?.scrollIntoView({behavior:'smooth'});return;}
+  if(target.hasAttribute('data-pilot-history')) {pilotPage='history';view='projects';render();return;}
   if(target.hasAttribute('data-pilot-drawing')) {
     modal(`${modalHead('Pedir desenho técnico','Envia a folha de medidas e as fotos do local. A equipa da Forja devolve o alçado cotado nesta página.')}
       <div class="pilot-drawing">
