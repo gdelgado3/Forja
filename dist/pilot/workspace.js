@@ -29,8 +29,24 @@ function renderPilotWorkspace() {
     ${isDetail?'<button data-action="nav" data-view="projects">Orçamentos anteriores</button>':''}
     <button data-action="export">Exportar cópia</button><button data-pilot-action="logout">Sair</button></div></header>
     <main class="pilot-content"><div class="pilot-sync no-print" id="pilot-save-status" role="status">${esc(window.forjaPilot.status())}</div>
-    ${pilotQuickHtml()}<section id="pilot-responses" class="no-print"></section>${isDetail&&tab==='orcamento'?pilotAiHtml(project()):''}${isDetail?detail(project()):projectsHtml()}${isDetail&&tab==='pedido'?pilotAiHtml(project()):''}${isDetail?pilotPriceCheck(project()):''}${pilotFeedbackHtml()}</main></div>`;
+    ${pilotQuickHtml()}<section id="pilot-responses" class="no-print"></section>${isDetail&&tab==='orcamento'?pilotAiTop(project()):''}${isDetail?detail(project()):projectsHtml()}${isDetail&&tab==='pedido'?pilotAiPedido(project()):''}${isDetail?pilotPriceCheck(project()):''}${pilotFeedbackHtml()}</main></div>`;
   renderPilotResponses();
+  // No separador Pedido, o botão Obter orçamento fica logo a seguir aos anexos (sem espaço vazio).
+  const ai=document.querySelector('#pilot-ai'),files=document.querySelector('#anexos-card');
+  if(ai&&files&&tab==='pedido')files.after(ai);
+}
+// O orçamento obtém-se em 1. Pedido; a proposta revê-se em 2. Orçamento.
+function pilotAiStage(p){if(!p||pilotAi.pid!==p.id)return 'none';if(pilotAi.loading)return 'loading';return pilotAi.data?.turns?.length?'result':'none';}
+function pilotAiPedido(p){
+  const html=pilotAiHtml(p);
+  if(pilotAiStage(p)!=='result')return html;
+  return `<section class="card card-pad pilot-ai pilot-ai-ready no-print" id="pilot-ai"><div class="card-title"><h2>Orçamento proposto pronto</h2></div><p>A Forja já leu este pedido. Revê as linhas e aplica-as em <b>2. Orçamento</b>.</p><div class="pilot-ai-actions"><button type="button" class="primary" data-action="tab" data-tab="orcamento">Rever orçamento proposto →</button><button type="button" class="small ghost" data-ai-restart ${pilotAi.data?.remaining?'':'disabled'}>Analisar de novo</button></div></section>`;
+}
+function pilotAiTop(p){
+  const html=pilotAiHtml(p),stage=pilotAiStage(p);
+  if(stage!=='none')return html;
+  if(p?.lines?.length)return '';
+  return `<section class="card card-pad pilot-ai-hint no-print"><p><strong>Ainda sem orçamento.</strong> O orçamento faz-se em <b>1. Pedido</b>: junta o pedido e os anexos e carrega em <b>Obter orçamento</b>.</p><button type="button" class="primary" data-action="tab" data-tab="pedido">← Ir para 1. Pedido</button></section>`;
 }
 function renderPilotResponses() {
   const box=document.querySelector('#pilot-responses');
@@ -115,6 +131,7 @@ let pilotFold={check:false,feedback:false};
 // Explicações de texto (origem, contas, ajudas) ocultas por omissão; preferência só deste navegador.
 (()=>{let show=false;try{show=localStorage.getItem('forja-explain')==='1'}catch{}document.body.classList.toggle('hide-explain',!show)})();
 document.addEventListener('click',ev=>{const b=ev.target.closest?.('[data-explain-toggle]');if(!b)return;ev.preventDefault();const show=!document.body.classList.toggle('hide-explain');try{localStorage.setItem('forja-explain',show?'1':'0')}catch{}});
+document.addEventListener('click',ev=>{if(!ev.target.closest?.('[data-pilot-goto-ai]'))return;const ai=document.querySelector('#pilot-ai');ai?.scrollIntoView({behavior:'smooth',block:'start'});document.querySelector('#pilot-notes')?.focus({preventScroll:true});});
 document.addEventListener('toggle',e=>{const d=e.target;if(d?.dataset?.fold)pilotFold[d.dataset.fold]=d.open},true);
 let pilotQuick={rating:null,closed:false};
 // ---------- Leitura com IA ----------

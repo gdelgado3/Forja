@@ -773,3 +773,8 @@
 .pilot-mode [data-explain-toggle] { white-space:nowrap; }
 .pilot-mode h3 [data-explain-toggle] { margin-left:8px; vertical-align:middle; font-size:13px; font-weight:500; }
 @media print { .pilot-mode.hide-explain .pilot-explain { display:revert !important; } .pilot-mode .pilot-explain-alt { display:none !important; } }
+/* Obter orçamento logo após os anexos; aviso no separador Orçamento. */
+.pilot-mode #anexos-card + #pilot-ai { margin-top: 16px; }
+.pilot-mode .pilot-ai-hint { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:16px; border:1px dashed var(--forja-control-border); }
+.pilot-mode .pilot-ai-hint p { margin:0; }
+.pilot-mode .pilot-ai-ready { border-left:5px solid var(--forja-brand); }
