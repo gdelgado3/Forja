@@ -47,6 +47,7 @@ function renderPilotWorkspace() {
   if(ai&&files&&tab==='pedido')files.after(ai);
   document.querySelectorAll('textarea.desc').forEach(pilotFitDesc);
   pilotDraftRefresh();
+  document.body.classList.toggle('pilot-reviewing',view==='detail'&&tab==='orcamento'&&pilotReview&&pilotAiStage(project())==='result');
 }
 // Rascunho antes de aplicar: o resumo mostra já o valor das linhas propostas (a tracejado), e muda à medida que se alteram quantidades e custos.
 function pilotDraftTotals(p){
@@ -138,13 +139,26 @@ function pilotAiStage(p){if(!p||pilotAi.pid!==p.id)return 'none';if(pilotAi.load
 function pilotAiPedido(p){
   const html=pilotAiHtml(p);
   if(pilotAiStage(p)!=='result')return html;
-  return `<section class="card card-pad pilot-ai pilot-ai-ready no-print" id="pilot-ai"><div class="card-title"><h2>Orçamento proposto pronto</h2></div><p>A Forja já leu este pedido. Revê as linhas e aplica-as em <b>2. Orçamento</b>.</p><div class="pilot-ai-actions"><button type="button" class="primary" data-action="tab" data-tab="orcamento">Rever orçamento proposto →</button><button type="button" class="small ghost" data-ai-restart ${pilotAi.data?.remaining?'':'disabled'}>Analisar de novo</button></div></section>`;
+  return `<section class="card card-pad pilot-ai pilot-ai-ready no-print" id="pilot-ai"><div class="card-title"><h2>Orçamento proposto pronto</h2></div><p>A Forja já leu este pedido. Revê as linhas e aplica-as em <b>2. Orçamento</b>.</p><div class="pilot-ai-actions"><button type="button" class="primary" data-ai-review="1">Rever proposta da Forja →</button><button type="button" class="small ghost" data-ai-restart ${pilotAi.data?.remaining?'':'disabled'}>Analisar de novo</button></div></section>`;
 }
 function pilotAiTop(p){
   const html=pilotAiHtml(p),stage=pilotAiStage(p);
-  if(stage!=='none')return html;
+  if(stage==='loading')return html;
+  if(stage==='result'){
+    if(pilotReview)return `<button type="button" class="pilot-back" data-ai-review="0">← Voltar ao orçamento</button>${html}`;
+    return pilotAiBanner(p);
+  }
   if(p?.lines?.length)return '';
   return `<section class="card card-pad pilot-ai-hint no-print"><p><strong>Ainda sem orçamento.</strong> O orçamento faz-se em <b>1. Pedido</b>: junta o pedido e os anexos e carrega em <b>Obter orçamento</b>.</p><button type="button" class="primary" data-action="tab" data-tab="pedido">← Ir para 1. Pedido</button></section>`;
+}
+// Cartão curto da proposta: o essencial à vista e "Rever e aplicar" abre a proposta completa numa página só dela.
+function pilotAiBanner(p){
+  const turns=pilotAi.data.turns,r=turns.at(-1).reading,applied=pilotAi.applied[p.id]===turns.at(-1).at,d=pilotDraftTotals(p);
+  return `<section class="pilot-ai-banner no-print${applied?' applied':''}">
+    <div class="pab-main"><h2>${applied?'Proposta da Forja aplicada':'Proposta da Forja pronta'}</h2>
+      <p>${esc((r.summary||'').slice(0,220))}${(r.summary||'').length>220?'…':''}</p>
+      <ul class="pab-stats"><li><b>${r.lines.length}</b> linhas</li><li><b>${r.missing.length}</b> por saber</li><li><b>${pilotScopeItems(r).length}</b> de âmbito</li>${d?`<li class="pab-draft"><b>${euro(d.total)}</b> com IVA, por aplicar</li>`:''}</ul></div>
+    <button type="button" class="pab-go" data-ai-review="1">${applied?'Ver proposta':'Rever e aplicar'} <span aria-hidden="true">→</span></button></section>`;
 }
 function renderPilotResponses() {
   const box=document.querySelector('#pilot-responses');
@@ -228,6 +242,10 @@ let pilotFeedback={rating:null,text:'',sent:false};
 let pilotFold={check:false,feedback:false,events:false};
 // Orçamento proposto por secções (menos scroll): Linhas, Falta saber, Âmbito, Contas e avisos, Corrigir.
 let pilotAiSec='linhas';
+// Proposta da Forja numa página própria (sem a composição por baixo) ou só como cartão curto por cima do orçamento.
+let pilotReview=false;
+document.addEventListener('click',e=>{if(e.target.closest?.('[data-action="tab"]')&&!e.target.closest('[data-ai-review]'))pilotReview=false;},true);
+document.addEventListener('click',e=>{const b=e.target.closest?.('[data-ai-review]');if(!b)return;e.preventDefault();pilotReview=b.dataset.aiReview==='1';tab='orcamento';render();scrollTo({top:0});});
 document.addEventListener('click',e=>{const b=e.target.closest?.('[data-ai-sec]');if(!b)return;e.preventDefault();pilotAiSec=b.dataset.aiSec;document.querySelectorAll('.pilot-ai-sec').forEach(x=>x.hidden=x.dataset.sec!==pilotAiSec);document.querySelectorAll('[data-ai-sec]').forEach(x=>{const on=x.dataset.aiSec===pilotAiSec;x.classList.toggle('on',on);x.setAttribute('aria-pressed',on);});document.querySelector('.pilot-ai-nav')?.scrollIntoView({behavior:'smooth',block:'nearest'});});
 // Cronómetro da análise: só arranca quando o servidor começa mesmo a analisar; antes disso diz "a preparar".
 setInterval(()=>{const el=document.querySelector('#pilot-ai-elapsed'),st=pilotAi?.data?.started;if(!el||!st||!pilotAi.loading)return;const s=Math.max(0,Math.round((Date.now()-new Date(st))/1000));el.textContent=`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;},1000);
@@ -366,9 +384,9 @@ function pilotAiPoll(pid) {
       if(!d.pending){
         const changed=d.turns.length!==(pilotAi.data?.turns?.length||0);
         pilotAi.data=d;pilotAi.loading=false;pilotAi.error=d.error||'';
-        if(changed){pilotAiSec='linhas';pilotHow.clear();pilotAi.off=new Set();pilotAi.prices={};pilotAi.answers={};pilotAi.fromClient={};pilotAi.qty={};pilotAi.confirmed=new Set();pilotAi.scope={};pilotAskMerge(false);toast('O orçamento proposto está pronto. Revê e aplica.');}
+        if(changed){pilotAiSec='linhas';pilotReview=false;pilotHow.clear();pilotAi.off=new Set();pilotAi.prices={};pilotAi.answers={};pilotAi.fromClient={};pilotAi.qty={};pilotAi.confirmed=new Set();pilotAi.scope={};pilotAskMerge(false);toast('O orçamento proposto está pronto. Revê e aplica.');}
         // Acabou: salta para o separador Orçamento, com a proposta no topo.
-        if(changed && view==='detail' && selected===pid){tab='orcamento';render();requestAnimationFrame(()=>document.querySelector('#pilot-ai')?.scrollIntoView({behavior:'smooth',block:'start'}));return;}
+        if(changed && view==='detail' && selected===pid){tab='orcamento';pilotReview=true;render();scrollTo({top:0});return;requestAnimationFrame(()=>document.querySelector('#pilot-ai')?.scrollIntoView({behavior:'smooth',block:'start'}));return;}
         if(view==='detail')render();
         return;
       }
@@ -489,7 +507,7 @@ function pilotAiApply(p) {
   }
   pilotAi.applied[p.id]=pilotAi.data.turns.at(-1).at;
   dirty(p);event(p,`Leitura do pedido aplicada: ${added} linha(s), ${r.missing.length} pergunta(s) em falta.`,'Leitura do pedido · revista pela oficina');
-  persist();tab='orcamento';render();
+  persist();tab='orcamento';pilotReview=false;render();scrollTo({top:0});
   toast(`${added} linha(s) no orçamento, ${priced} com custo.`+(zero?` ${zero} com quantidade 0: indica-a no orçamento.`:' Revê as quantidades e os custos.'));
 }
 async function pilotAiRun(p,body) {

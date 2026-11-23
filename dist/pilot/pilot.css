@@ -1083,3 +1083,21 @@
 .pilot-intro .pi-ff strong { font-size:20px; color:#fff; }
 .pilot-intro .pi-msg { min-height:1.5em; margin:10px 0 0; color:#f0c35a; font-weight:600; }
 .pilot-intro .pi-skip { position:absolute; right:14px; bottom:12px; background:none; border:0; color:#a9c2b5; text-decoration:underline; cursor:pointer; font-size:14px; min-height:0; padding:4px; }
+
+/* ---------- Proposta da Forja: cartão curto por cima do orçamento, página própria ao rever ---------- */
+.pilot-mode.pilot-reviewing .detail-grid, .pilot-mode.pilot-reviewing .pilot-extras { display:none !important; }
+.pilot-mode .pilot-ai-banner { display:flex; align-items:center; gap:24px; margin:0 0 18px; padding:20px 24px; border-radius:16px; color:#fff;
+  background:#214236 repeating-linear-gradient(0deg, rgb(255 255 255 / 2.5%) 0 1px, transparent 1px 3px); }
+.pilot-mode .pilot-ai-banner.applied { background:#fff; color:#1d2b25; border:1px solid #dfe5df; }
+.pilot-mode .pilot-ai-banner .pab-main { flex:1; min-width:0; }
+.pilot-mode .pilot-ai-banner h2 { margin:0 0 6px; font-size:21px; color:inherit; }
+.pilot-mode .pilot-ai-banner p { margin:0 0 10px; color:#cfe3d6; font-size:15px; line-height:1.5; }
+.pilot-mode .pilot-ai-banner.applied p { color:#4d6157; }
+.pilot-mode .pab-stats { list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:8px; }
+.pilot-mode .pab-stats li { padding:4px 12px; border-radius:999px; background:rgb(255 255 255 / 10%); font-size:14px; }
+.pilot-mode .pilot-ai-banner.applied .pab-stats li { background:#eef1ee; }
+.pilot-mode .pab-stats .pab-draft { border:1.5px dashed #f0c35a; background:none; }
+.pilot-mode .pab-go { flex:none; min-height:56px; padding:0 24px; border:0; border-radius:12px; background:#f0c35a; color:#2a1d05; font-weight:800; font-size:17px; cursor:pointer; box-shadow:0 5px 0 #b48a2e; }
+.pilot-mode .pab-go:active { transform:translateY(3px); box-shadow:0 2px 0 #b48a2e; }
+.pilot-mode .pilot-ai-banner.applied .pab-go { background:#fff; border:1px solid #214236; color:#214236; box-shadow:none; }
+@media (max-width:760px){ .pilot-mode .pilot-ai-banner { flex-direction:column; align-items:stretch; } }
