@@ -908,16 +908,16 @@
 .pilot-mode .pilot-client-card h2 { color:#fff; margin:0 0 6px; font-size:22px; }
 .pilot-mode .pilot-client-card p { margin:0; color:#d7e3dc; font-size:15px; line-height:1.5; }
 .pilot-mode .pilot-client-card .field { background:#fff; }
-.pilot-mode .pilot-client-card .primary { background:#f0c35a; color:#173226; border-color:#f0c35a; font-weight:700; }
-.pilot-mode .pilot-client-card #pilot-form-copied { color:#f0c35a; min-height:1em; margin-top:6px; }
+.pilot-mode .pilot-client-card .primary { background:#d9f0c4; color:#173226; border-color:#d9f0c4; font-weight:700; }
+.pilot-mode .pilot-client-card #pilot-form-copied { color:#d9f0c4; min-height:1em; margin-top:6px; }
 .pilot-mode .pilot-client-privacy { grid-column:1/-1; justify-self:start; background:none; border:0; padding:0; min-height:0; color:#cfe0d6; text-decoration:underline; text-underline-offset:3px; font-size:14px; cursor:pointer; }
 @media (max-width:760px){ .pilot-mode .pilot-client-card { grid-template-columns:1fr; padding:20px; } }
 /* Demo: o botão de experimentar tem de ser impossível de falhar */
 .pilot-mode .pilot-try-example { position:relative; display:grid; grid-template-columns:auto 1fr auto; grid-template-rows:auto auto; column-gap:20px; align-items:center; width:100%; padding:22px 26px; margin:0 0 18px;
-  border:2px solid #214236; border-radius:16px; background:#f0c35a; color:#173226; text-align:left; cursor:pointer; box-shadow:0 6px 0 #214236; transition:transform .12s, box-shadow .12s; animation:none; justify-items:stretch; gap:0 20px; }
+  border:2px solid #214236; border-radius:16px; background:#d9f0c4; color:#173226; text-align:left; cursor:pointer; box-shadow:0 6px 0 #214236; transition:transform .12s, box-shadow .12s; animation:none; justify-items:stretch; gap:0 20px; }
 .pilot-mode .pilot-try-example:hover { transform:translateY(-2px); box-shadow:0 8px 0 #214236; }
 .pilot-mode .pilot-try-example:active { transform:translateY(4px); box-shadow:0 2px 0 #214236; }
-.pilot-mode .pilot-try-example::before { content:'▶'; grid-row:1/3; display:grid; place-items:center; width:56px; height:56px; border-radius:50%; background:#214236; color:#f0c35a; font-size:20px; padding-left:4px; }
+.pilot-mode .pilot-try-example::before { content:'▶'; grid-row:1/3; display:grid; place-items:center; width:56px; height:56px; border-radius:50%; background:#214236; color:#d9f0c4; font-size:20px; padding-left:4px; }
 .pilot-mode .pilot-try-example .pilot-try-badge { display:none; }
 .pilot-mode .pilot-try-example strong { grid-column:2; font-size:22px; font-family:Manrope,system-ui,sans-serif; font-weight:800; }
 .pilot-mode .pilot-try-example small { grid-column:2; font-size:15px; color:#2f4a3c; }
@@ -932,9 +932,9 @@
   background:#214236 repeating-linear-gradient(0deg, rgb(255 255 255 / 3%) 0 1px, transparent 1px 3px); color:#fff; box-shadow:0 6px 0 #10241b, 0 16px 30px -14px rgb(33 66 54 / 70%); transition:transform .12s, box-shadow .12s; }
 .pilot-mode .pilot-run:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 8px 0 #10241b, 0 20px 34px -14px rgb(33 66 54 / 75%); }
 .pilot-mode .pilot-run:active:not(:disabled) { transform:translateY(4px); box-shadow:0 2px 0 #10241b; }
-.pilot-mode .pilot-run:focus-visible { outline:3px solid #f0c35a; outline-offset:3px; }
+.pilot-mode .pilot-run:focus-visible { outline:3px solid #9fd36f; outline-offset:3px; }
 .pilot-mode .pilot-run:disabled { opacity:.5; cursor:not-allowed; }
-.pilot-mode .pilot-run-icon { display:grid; place-items:center; flex:none; width:48px; height:48px; border-radius:12px; background:#f0c35a; color:#214236; }
+.pilot-mode .pilot-run-icon { display:grid; place-items:center; flex:none; width:48px; height:48px; border-radius:12px; background:#d9f0c4; color:#214236; }
 .pilot-mode .pilot-run strong { display:block; font-family:Manrope,system-ui,sans-serif; font-size:22px; font-weight:800; color:#fff; }
 .pilot-mode .pilot-run small { display:block; font-size:14px; color:#cfe3d6; margin-top:2px; }
 
@@ -942,7 +942,7 @@
 .pilot-mode .pilot-ai-forging { display:grid; justify-items:center; text-align:center; gap:6px; padding:28px 24px 24px; margin:16px 0; border-radius:16px; color:#fff;
   background:#1a3329 radial-gradient(120% 80% at 50% 0%, #2a5443 0%, #1a3329 60%); }
 .pilot-mode .pilot-ai-forging h2 { color:#fff; font-size:24px; margin:4px 0 0; }
-.pilot-mode .pilot-ai-forging .pilot-ai-progress { color:#f0c35a; font-weight:600; font-size:16px; margin:0; }
+.pilot-mode .pilot-ai-forging .pilot-ai-progress { color:#d9f0c4; font-weight:600; font-size:16px; margin:0; }
 .pilot-mode .pilot-ai-forging .pilot-ai-wait { color:#cfe3d6; margin:0; font-variant-numeric:tabular-nums; }
 .pilot-mode .pilot-ai-forging .smalltext, .pilot-mode .pilot-ai-forging small { color:#a9c2b5; max-width:52ch; }
 .pilot-mode .pilot-forge svg { width:180px; height:auto; display:block; }
@@ -964,12 +964,12 @@
 /* ---------- Anexos: zona de largar ficheiros chamativa ---------- */
 .pilot-mode #anexos-card .drop { display:flex; align-items:center; gap:16px; padding:20px 22px; border:2px dashed #7fa892; border-radius:14px; background:#f4f9ee; color:#214236; cursor:pointer; text-align:left; transition:background .15s, border-color .15s; }
 .pilot-mode #anexos-card .drop:hover, .pilot-mode #anexos-card .drop.over { background:#e6f3da; border-color:#214236; }
-.pilot-mode #anexos-card .drop-icon { display:grid; place-items:center; flex:none; width:52px; height:52px; border-radius:50%; background:#214236; color:#f0c35a; }
+.pilot-mode #anexos-card .drop-icon { display:grid; place-items:center; flex:none; width:52px; height:52px; border-radius:50%; background:#214236; color:#d9f0c4; }
 .pilot-mode #anexos-card .drop-text strong { display:block; font-size:17px; }
 .pilot-mode #anexos-card .drop-text small { display:block; color:#4d6157; font-size:14px; margin-top:2px; }
 .pilot-mode .files-count { font-size:13px; font-weight:700; padding:4px 12px; border-radius:999px; background:#eef1ee; color:#5b6a63; }
-.pilot-mode .files-count.has { background:#214236; color:#f0c35a; }
-.pilot-mode .pilot-ai-forging .pilot-ai-progress { background:none !important; border:0 !important; box-shadow:none !important; font-style:normal !important; padding:0 !important; color:#f0c35a !important; }
+.pilot-mode .files-count.has { background:#214236; color:#d9f0c4; }
+.pilot-mode .pilot-ai-forging .pilot-ai-progress { background:none !important; border:0 !important; box-shadow:none !important; font-style:normal !important; padding:0 !important; color:#d9f0c4 !important; }
 .pilot-mode .pilot-ai-forging .pilot-ai-wait::before { display:none !important; }
 
 /* ---------- Tabela do orçamento: texto inteiro, preço nunca tapado, total em destaque ---------- */
@@ -984,7 +984,7 @@
 .pilot-mode .quote-table .pilot-stale { display:block; width:max-content; max-width:220px; margin-top:6px; white-space:normal; font-size:12px; line-height:1.3; }
 .pilot-mode .quote-table td[data-total] { font-weight:700; font-variant-numeric:tabular-nums; text-align:right; }
 .pilot-mode .quote-table input[type=number], .pilot-mode .quote-table select { font-size:15px; }
-.pilot-mode .summary-grand-line { margin-top:6px; padding:14px 16px; border-radius:12px; background:#f0c35a; color:#173226; align-items:baseline; }
+.pilot-mode .summary-grand-line { margin-top:6px; padding:14px 16px; border-radius:12px; background:#d9f0c4; color:#173226; align-items:baseline; }
 .pilot-mode .summary-grand-line span { color:#173226 !important; font-weight:700; }
 .pilot-mode .summary-grand-line strong { color:#173226 !important; font-family:Manrope,system-ui,sans-serif; font-size:26px; font-weight:800; }
 .pilot-mode .total-row.final { margin-top:8px; padding:14px 16px; border-radius:12px; background:#214236; color:#fff; font-size:20px; font-weight:800; }
@@ -1027,7 +1027,7 @@
 .pilot-mode .pilot-ai-nav button { display:inline-flex; align-items:center; gap:8px; min-height:42px; padding:0 16px; border-radius:999px; border:1px solid #d6ddd6; background:#fff; font-weight:700; font-size:15px; color:#2b4236; cursor:pointer; }
 .pilot-mode .pilot-ai-nav button b { display:grid; place-items:center; min-width:22px; height:22px; padding:0 6px; border-radius:999px; background:#eef1ee; font-size:12.5px; }
 .pilot-mode .pilot-ai-nav button.on { background:#214236; border-color:#214236; color:#fff; }
-.pilot-mode .pilot-ai-nav button.on b { background:#f0c35a; color:#173226; }
+.pilot-mode .pilot-ai-nav button.on b { background:#d9f0c4; color:#173226; }
 .pilot-mode .pilot-ai-sec > h3:first-child { margin-top:4px; }
 .pilot-mode .pilot-ai-intro .pilot-ai-reply { margin-top:0; }
 .pilot-mode .pilot-ai-applybar { position:sticky; bottom:0; z-index:5; margin:16px -4px -4px; padding:12px 4px 4px; background:linear-gradient(to top, #fff 80%, rgb(255 255 255 / 0%)); border-top:1px solid #e6ebe5; }
@@ -1038,17 +1038,17 @@
 .pilot-mode .pilot-mem-nav button { display:flex; justify-content:space-between; align-items:center; min-height:48px; padding:0 16px; border-radius:12px; border:1px solid #dfe5df; background:#fff; font-weight:700; font-size:15px; color:#2b4236; cursor:pointer; text-align:left; }
 .pilot-mode .pilot-mem-nav button b { display:grid; place-items:center; min-width:26px; height:24px; border-radius:999px; background:#eef1ee; font-size:13px; }
 .pilot-mode .pilot-mem-nav button.on { background:#214236; color:#fff; border-color:#214236; }
-.pilot-mode .pilot-mem-nav button.on b { background:#f0c35a; color:#173226; }
+.pilot-mode .pilot-mem-nav button.on b { background:#d9f0c4; color:#173226; }
 .pilot-mode .pilot-mem-body { display:grid; gap:12px; align-content:start; }
 .pilot-mode .pilot-mem-act { list-style:none; margin:0; padding:0 0 0 16px; border-left:2px solid #d9e5d9; display:grid; gap:14px; }
 .pilot-mode .pilot-mem-act small { color:#6a7872; } .pilot-mode .pilot-mem-act p { margin:2px 0; } .pilot-mode .pilot-mem-act span { font-size:13px; color:#2f5a47; }
 @media (max-width:760px){ .pilot-mode .pilot-mem-grid { grid-template-columns:1fr; } .pilot-mode .pilot-mem-nav { grid-auto-flow:column; overflow-x:auto; } .pilot-mode .pilot-mem-nav button { white-space:nowrap; gap:10px; } }
 
 /* Rascunho por aplicar: valores provisórios a tracejado */
-.pilot-mode .summary.is-draft { outline:2px dashed #f0c35a; outline-offset:-8px; }
-.pilot-mode .summary.is-draft .big-price, .pilot-mode .summary.is-draft #summary-grand { color:#f0c35a !important; font-style:italic; }
-.pilot-mode .summary.is-draft .summary-grand-line { background:transparent; border:2px dashed #f0c35a; }
-.pilot-mode .summary.is-draft .summary-grand-line span { color:#f0c35a !important; }
+.pilot-mode .summary.is-draft { outline:2px dashed #d9f0c4; outline-offset:-8px; }
+.pilot-mode .summary.is-draft .big-price, .pilot-mode .summary.is-draft #summary-grand { color:#d9f0c4 !important; font-style:italic; }
+.pilot-mode .summary.is-draft .summary-grand-line { background:transparent; border:2px dashed #d9f0c4; }
+.pilot-mode .summary.is-draft .summary-grand-line span { color:#d9f0c4 !important; }
 .pilot-mode .pilot-draft { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 10px; margin-bottom:12px; padding:12px 14px; border:2px dashed #7fa892; border-radius:12px; background:#f4f9ee; color:#173226; }
 .pilot-mode .pilot-draft strong { font-family:Manrope,system-ui,sans-serif; font-size:20px; font-variant-numeric:tabular-nums; }
 .pilot-mode .pilot-draft span { font-size:14px; color:#4d6157; }
@@ -1063,7 +1063,7 @@
   background:#1a3329 radial-gradient(120% 80% at 50% 0%, #2a5443 0%, #1a3329 60%); box-shadow:0 30px 60px -20px rgb(0 0 0 / 55%); }
 .pilot-intro .pi-steps { display:flex; justify-content:center; flex-wrap:wrap; gap:8px; margin-bottom:18px; }
 .pilot-intro .pi-steps span { padding:6px 12px; border-radius:999px; font-size:13.5px; font-weight:700; color:#a9c2b5; border:1px solid #3f6655; }
-.pilot-intro .pi-steps span.on { background:#f0c35a; border-color:#f0c35a; color:#2a1d05; }
+.pilot-intro .pi-steps span.on { background:#d9f0c4; border-color:#d9f0c4; color:#2a1d05; }
 .pilot-intro .pi-paper { margin:0 auto; max-width:460px; padding:18px 20px; border-radius:6px; background:#fffefa; color:#33433c; text-align:left; transform:rotate(-1.2deg); animation:pi-drop .5s cubic-bezier(.2,.9,.3,1.2); }
 @keyframes pi-drop { from { transform:translateY(-30px) rotate(-4deg); opacity:0; } }
 .pilot-intro .pi-from { font-size:12.5px; color:#6a7872; margin:0 0 6px; }
@@ -1079,9 +1079,9 @@
 @keyframes pi-strike { 0%,35%{transform:rotate(32deg)} 55%{transform:rotate(-1deg)} 62%{transform:rotate(0)} 100%{transform:rotate(32deg)} }
 @keyframes pi-spark { 0%,52%{opacity:0;transform:none} 56%{opacity:1} 100%{opacity:0;transform:translate(var(--dx),var(--dy))} }
 .pilot-intro .pi-ff { display:flex; justify-content:center; align-items:baseline; gap:12px; margin:0; color:#cfe3d6; font-variant-numeric:tabular-nums; }
-.pilot-intro .pi-ff span { font-size:13px; font-weight:700; color:#f0c35a; letter-spacing:.02em; }
+.pilot-intro .pi-ff span { font-size:13px; font-weight:700; color:#d9f0c4; letter-spacing:.02em; }
 .pilot-intro .pi-ff strong { font-size:20px; color:#fff; }
-.pilot-intro .pi-msg { min-height:1.5em; margin:10px 0 0; color:#f0c35a; font-weight:600; }
+.pilot-intro .pi-msg { min-height:1.5em; margin:10px 0 0; color:#d9f0c4; font-weight:600; }
 .pilot-intro .pi-skip { position:absolute; right:14px; bottom:12px; background:none; border:0; color:#a9c2b5; text-decoration:underline; cursor:pointer; font-size:14px; min-height:0; padding:4px; }
 
 /* ---------- Proposta da Forja: cartão curto por cima do orçamento, página própria ao rever ---------- */
@@ -1096,8 +1096,14 @@
 .pilot-mode .pab-stats { list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:8px; }
 .pilot-mode .pab-stats li { padding:4px 12px; border-radius:999px; background:rgb(255 255 255 / 10%); font-size:14px; }
 .pilot-mode .pilot-ai-banner.applied .pab-stats li { background:#eef1ee; }
-.pilot-mode .pab-stats .pab-draft { border:1.5px dashed #f0c35a; background:none; }
-.pilot-mode .pab-go { flex:none; min-height:56px; padding:0 24px; border:0; border-radius:12px; background:#f0c35a; color:#2a1d05; font-weight:800; font-size:17px; cursor:pointer; box-shadow:0 5px 0 #b48a2e; }
-.pilot-mode .pab-go:active { transform:translateY(3px); box-shadow:0 2px 0 #b48a2e; }
+.pilot-mode .pab-stats .pab-draft { border:1.5px dashed #d9f0c4; background:none; }
+.pilot-mode .pab-go { flex:none; min-height:56px; padding:0 24px; border:0; border-radius:12px; background:#d9f0c4; color:#173226; font-weight:800; font-size:17px; cursor:pointer; box-shadow:0 5px 0 #8fb47a; }
+.pilot-mode .pab-go:active { transform:translateY(3px); box-shadow:0 2px 0 #8fb47a; }
 .pilot-mode .pilot-ai-banner.applied .pab-go { background:#fff; border:1px solid #214236; color:#214236; box-shadow:none; }
 @media (max-width:760px){ .pilot-mode .pilot-ai-banner { flex-direction:column; align-items:stretch; } }
+
+/* Latão só nos momentos da forja: simulação, "A forjar" e o botão Obter orçamento. O resto fica no verde claro. */
+.pilot-intro .pi-steps span.on { background:#f0c35a; border-color:#f0c35a; color:#2a1d05; }
+.pilot-intro .pi-ff span, .pilot-intro .pi-msg { color:#f0c35a; }
+.pilot-mode .pilot-ai-forging .pilot-ai-progress { color:#f0c35a !important; }
+.pilot-mode .pilot-run-icon { background:#f0c35a; color:#2a1d05; }
