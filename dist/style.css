@@ -12,3 +12,23 @@
 @media(max-width:560px){.extra-row{padding-bottom:8px;border-bottom:1px solid #e4e7df}}
 .back-button { display:inline-flex; align-items:center; gap:6px; margin:0 0 12px; padding:8px 14px; border:1px solid #c9cec4; border-radius:999px; background:#fff; font:inherit; font-size:14px; font-weight:600; cursor:pointer; }
 .pilot-explain-alt{display:none}
+.origin-view{display:grid;gap:14px;margin-top:6px}
+.origin-line{margin:0;font-size:15px;font-weight:600;color:#22332c}
+.origin-figures{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.origin-figures>div{padding:10px 12px;border:1px solid #e4e7df;border-radius:10px;background:#f7f8f4}
+.origin-figures small,.origin-source>small{display:block;color:#59655d;font-size:12px;letter-spacing:.02em}
+.origin-figures strong{display:block;margin-top:2px;font-size:17px;font-variant-numeric:tabular-nums;color:#22332c}
+.origin-figures .origin-total{background:#214236;border-color:#214236}
+.origin-figures .origin-total small,.origin-figures .origin-total strong{color:#fff}
+.origin-source ul{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:6px}
+.origin-source li,.origin-empty{margin:0;padding:10px 12px;border-left:3px solid #214236;border-radius:0 8px 8px 0;background:#eef3ec;font-size:14px;line-height:1.5;color:#22332c;overflow-wrap:anywhere}
+.origin-source li.origin-math{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px}
+.origin-source li.origin-warn,.origin-empty{border-left-color:#c47835;background:#fff3e7}
+.origin-chip{display:inline-block;margin-right:8px;padding:1px 8px;border-radius:999px;background:#7a4312;color:#fff;font:600 11px/1.6 system-ui,sans-serif;vertical-align:1px}
+.origin-edit{margin-top:14px;border-top:1px solid #e4e7df;padding-top:10px}
+.origin-edit>summary{cursor:pointer;color:#214236;font-size:13px;font-weight:600;list-style:none}
+.origin-edit>summary::-webkit-details-marker{display:none}
+.origin-edit>summary::before{content:'✎ '}
+.origin-edit[open]>summary{margin-bottom:8px}
+.origin-edit textarea{min-height:90px}
+@media(max-width:520px){.origin-figures{grid-template-columns:1fr 1fr}.origin-figures .origin-total{grid-column:1/-1}}
