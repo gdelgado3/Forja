@@ -162,6 +162,9 @@ function pilotPriceCheck(p) {
 }
 let pilotFeedback={rating:null,text:'',sent:false};
 let pilotFold={check:false,feedback:false,events:false};
+// Orçamento proposto por secções (menos scroll): Linhas, Falta saber, Âmbito, Contas e avisos, Corrigir.
+let pilotAiSec='linhas';
+document.addEventListener('click',e=>{const b=e.target.closest?.('[data-ai-sec]');if(!b)return;e.preventDefault();pilotAiSec=b.dataset.aiSec;document.querySelectorAll('.pilot-ai-sec').forEach(x=>x.hidden=x.dataset.sec!==pilotAiSec);document.querySelectorAll('[data-ai-sec]').forEach(x=>{const on=x.dataset.aiSec===pilotAiSec;x.classList.toggle('on',on);x.setAttribute('aria-pressed',on);});document.querySelector('.pilot-ai-nav')?.scrollIntoView({behavior:'smooth',block:'nearest'});});
 // Cronómetro da análise: só arranca quando o servidor começa mesmo a analisar; antes disso diz "a preparar".
 setInterval(()=>{const el=document.querySelector('#pilot-ai-elapsed'),st=pilotAi?.data?.started;if(!el||!st||!pilotAi.loading)return;const s=Math.max(0,Math.round((Date.now()-new Date(st))/1000));el.textContent=`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;},1000);
 // Página inicial e páginas próprias: histórico completo, avaliar orçamentos e feedback.
@@ -299,7 +302,7 @@ function pilotAiPoll(pid) {
       if(!d.pending){
         const changed=d.turns.length!==(pilotAi.data?.turns?.length||0);
         pilotAi.data=d;pilotAi.loading=false;pilotAi.error=d.error||'';
-        if(changed){pilotHow.clear();pilotAi.off=new Set();pilotAi.prices={};pilotAi.answers={};pilotAi.fromClient={};pilotAi.qty={};pilotAi.confirmed=new Set();pilotAi.scope={};pilotAskMerge(false);toast('O orçamento proposto está pronto. Revê e aplica.');}
+        if(changed){pilotAiSec='linhas';pilotHow.clear();pilotAi.off=new Set();pilotAi.prices={};pilotAi.answers={};pilotAi.fromClient={};pilotAi.qty={};pilotAi.confirmed=new Set();pilotAi.scope={};pilotAskMerge(false);toast('O orçamento proposto está pronto. Revê e aplica.');}
         // Acabou: salta para o separador Orçamento, com a proposta no topo.
         if(changed && view==='detail' && selected===pid){tab='orcamento';render();requestAnimationFrame(()=>document.querySelector('#pilot-ai')?.scrollIntoView({behavior:'smooth',block:'start'}));return;}
         if(view==='detail')render();
@@ -354,19 +357,26 @@ function pilotAiHtml(p) {
     ${r.pieces.map(x=>`<tr><td>${esc(x.piece)} ${badge(x.state)}</td><td>${esc(x.measures)}</td><td>${esc(x.material)}</td><td>${esc(x.qty)}</td><td>${esc(x.fixing)}</td><td><small>${esc(x.origin)}</small></td></tr>`).join('')}</tbody></table></div></details>`:'';
   const history=turns.slice(1).map(t=>`<li><small>${new Date(t.at).toLocaleString('pt-PT',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</small> ${esc(t.ask)}</li>`).join('');
   return `<section class="card card-pad pilot-ai no-print" id="pilot-ai"><div class="card-title"><h2>Orçamento proposto</h2>${left}</div>
-    ${r.reply?`<p class="pilot-ai-reply">${esc(r.reply)}</p>`:''}
+    ${(()=>{const secs=[['linhas','Linhas',r.lines.length],['falta','Falta saber',r.missing.length],['ambito','Âmbito',pilotScopeItems(r).length],['contas','Contas e avisos',r.calcs.length+r.warnings.length+r.pieces.length],['corrigir','Corrigir',0]].filter(x=>x[0]==='linhas'||x[0]==='corrigir'||x[2]);if(!secs.some(x=>x[0]===pilotAiSec))pilotAiSec='linhas';
+      return `<nav class="pilot-ai-nav" aria-label="Secções do orçamento proposto">${secs.map(([k,l,n])=>`<button type="button" data-ai-sec="${k}" aria-pressed="${pilotAiSec===k}" class="${pilotAiSec===k?'on':''}">${l}${n?`<b>${n}</b>`:''}</button>`).join('')}</nav>`;})()}
+    <div class="pilot-ai-intro">    ${r.reply?`<p class="pilot-ai-reply">${esc(r.reply)}</p>`:''}
     <p>${esc(r.summary)}</p>${pieces}
-    ${r.lines.length?`<h3>Linhas propostas</h3><p class="smalltext muted">Escolhe as que entram no orçamento. O custo vem do catálogo e podes alterá-lo. A barra mostra quanto o artigo do catálogo bate com a linha; sem correspondência, o custo fica por indicar.</p><ul class="pilot-ai-lines">${lines}</ul>`:''}
-    ${r.missing.length?`<h3>Falta saber</h3><p class="smalltext muted">Responde ao que já souberes, na própria linha, e atualiza o orçamento.</p><ul class="pilot-ai-questions">${r.missing.map((q,i)=>`<li><div class="pilot-ai-qtext"><span>${esc(q.question)}</span>${q.why?`<details class="pilot-how" data-how="q${i}"${pilotHow.has('q'+i)?' open':''}><summary>Porquê?</summary><small class="muted">${esc(q.why)}</small></details>`:''}</div><div class="pilot-ai-answer"><input class="field" data-ai-answer="${i}" maxlength="600" value="${esc(pilotAi.answers[i]||'')}" placeholder="Resposta" aria-label="Resposta: ${esc(q.question)}">${pilotAi.fromClient[i]?'<small class="pilot-ai-client">Respondido pelo cliente</small>':''}</div></li>`).join('')}</ul>
+</div>
+    <div class="pilot-ai-sec" data-sec="linhas" ${pilotAiSec==='linhas'?'':'hidden'}>    ${r.lines.length?`<h3>Linhas propostas</h3><p class="smalltext muted">Escolhe as que entram no orçamento. O custo vem do catálogo e podes alterá-lo. A barra mostra quanto o artigo do catálogo bate com a linha; sem correspondência, o custo fica por indicar.</p><ul class="pilot-ai-lines">${lines}</ul>`:''}
+</div>
+    <div class="pilot-ai-sec" data-sec="falta" ${pilotAiSec==='falta'?'':'hidden'}>    ${r.missing.length?`<h3>Falta saber</h3><p class="smalltext muted">Responde ao que já souberes, na própria linha, e atualiza o orçamento.</p><ul class="pilot-ai-questions">${r.missing.map((q,i)=>`<li><div class="pilot-ai-qtext"><span>${esc(q.question)}</span>${q.why?`<details class="pilot-how" data-how="q${i}"${pilotHow.has('q'+i)?' open':''}><summary>Porquê?</summary><small class="muted">${esc(q.why)}</small></details>`:''}</div><div class="pilot-ai-answer"><input class="field" data-ai-answer="${i}" maxlength="600" value="${esc(pilotAi.answers[i]||'')}" placeholder="Resposta" aria-label="Resposta: ${esc(q.question)}">${pilotAi.fromClient[i]?'<small class="pilot-ai-client">Respondido pelo cliente</small>':''}</div></li>`).join('')}</ul>
       <div class="pilot-ai-actions"><button type="button" class="primary" data-ai-answers ${d.remaining?'':'disabled'}>Responder e atualizar orçamento</button><button type="button" data-ai-askclient>Perguntar ao cliente</button></div>${pilotAskStatus(r)}`:''}
-    ${pilotScopeHtml(r)}
-    ${r.calcs.length?`<details><summary>Contas (${r.calcs.length})</summary><ul>${r.calcs.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></details>`:''}
-    ${list('Avisos',r.warnings)}${err}
-    <div class="pilot-ai-actions">${pilotAi.applied[p.id]===turns.at(-1).at?'<span class="smalltext muted">Esta leitura já foi aplicada. Se corrigires, a nova leitura pode ser aplicada outra vez (as linhas antigas ficam; apaga as que sobrarem).</span>':`<button type="button" class="primary" data-ai-apply ${r.lines.length||r.missing.length?'':'disabled'}>Aplicar ao orçamento e à memória</button>`}</div>
-    <div class="pilot-ai-ask"><label for="ai-ask">Análise da oficina</label><p class="smalltext muted">Escreve o que sabes e o rascunho não tem: correções, o que a empresa costuma fazer, o que está incluído. A Forja interpreta e atualiza o orçamento.</p>
+</div>
+    <div class="pilot-ai-sec" data-sec="ambito" ${pilotAiSec==='ambito'?'':'hidden'}>${pilotScopeHtml(r)}</div>
+    <div class="pilot-ai-sec" data-sec="contas" ${pilotAiSec==='contas'?'':'hidden'}>    ${r.calcs.length?`<details><summary>Contas (${r.calcs.length})</summary><ul>${r.calcs.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></details>`:''}
+    ${list('Avisos',r.warnings)}
+</div>
+    <div class="pilot-ai-sec" data-sec="corrigir" ${pilotAiSec==='corrigir'?'':'hidden'}>    <div class="pilot-ai-ask"><label for="ai-ask">Análise da oficina</label><p class="smalltext muted">Escreve o que sabes e o rascunho não tem: correções, o que a empresa costuma fazer, o que está incluído. A Forja interpreta e atualiza o orçamento.</p>
       <textarea class="field" id="ai-ask" rows="2" maxlength="2000" placeholder="Ex.: são 2 portões iguais; usamos chapa de 3 mm; a montagem está incluída; não leva motor."></textarea>
       <div class="pilot-ai-actions"><button type="button" class="primary" data-ai-ask ${d.remaining?'':'disabled'}>Atualizar orçamento</button><button type="button" class="small ghost" data-ai-restart ${d.remaining?'':'disabled'}>Analisar de novo</button></div>
-      ${history?`<ul class="pilot-ai-history">${history}</ul>`:''}</div></section>`;
+      ${history?`<ul class="pilot-ai-history">${history}</ul>`:''}</div></div>
+    ${err}<div class="pilot-ai-applybar">    <div class="pilot-ai-actions">${pilotAi.applied[p.id]===turns.at(-1).at?'<span class="smalltext muted">Esta leitura já foi aplicada. Se corrigires, a nova leitura pode ser aplicada outra vez (as linhas antigas ficam; apaga as que sobrarem).</span>':`<button type="button" class="primary" data-ai-apply ${r.lines.length||r.missing.length?'':'disabled'}>Aplicar ao orçamento e à memória</button>`}</div>
+</div></section>`;
 }
 // Âmbito: cada item com decisão "fica fora" ou "entra no orçamento".
 function pilotScopeItems(r) {

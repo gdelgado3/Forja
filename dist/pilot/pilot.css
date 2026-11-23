@@ -1004,3 +1004,13 @@
 .pilot-mode .total-row.final span:last-child { font-size:22px; font-family:Manrope,system-ui,sans-serif; }
 .pilot-mode .summary-grand-line { white-space:nowrap; gap:12px; }
 .pilot-mode .summary-grand-line strong { font-size:24px; }
+
+/* ---------- Orçamento proposto por secções ---------- */
+.pilot-mode .pilot-ai-nav { position:sticky; top:0; z-index:5; display:flex; flex-wrap:wrap; gap:8px; margin:6px -4px 14px; padding:10px 4px; background:#fff; border-bottom:1px solid #e6ebe5; }
+.pilot-mode .pilot-ai-nav button { display:inline-flex; align-items:center; gap:8px; min-height:42px; padding:0 16px; border-radius:999px; border:1px solid #d6ddd6; background:#fff; font-weight:700; font-size:15px; color:#2b4236; cursor:pointer; }
+.pilot-mode .pilot-ai-nav button b { display:grid; place-items:center; min-width:22px; height:22px; padding:0 6px; border-radius:999px; background:#eef1ee; font-size:12.5px; }
+.pilot-mode .pilot-ai-nav button.on { background:#214236; border-color:#214236; color:#fff; }
+.pilot-mode .pilot-ai-nav button.on b { background:#d9f0c4; color:#173226; }
+.pilot-mode .pilot-ai-sec > h3:first-child { margin-top:4px; }
+.pilot-mode .pilot-ai-intro .pilot-ai-reply { margin-top:0; }
+.pilot-mode .pilot-ai-applybar { position:sticky; bottom:0; z-index:5; margin:16px -4px -4px; padding:12px 4px 4px; background:linear-gradient(to top, #fff 80%, rgb(255 255 255 / 0%)); border-top:1px solid #e6ebe5; }
