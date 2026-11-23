@@ -46,6 +46,31 @@ function renderPilotWorkspace() {
   const ai=document.querySelector('#pilot-ai'),files=document.querySelector('#anexos-card');
   if(ai&&files&&tab==='pedido')files.after(ai);
   document.querySelectorAll('textarea.desc').forEach(pilotFitDesc);
+  pilotDraftRefresh();
+}
+// Rascunho antes de aplicar: o resumo mostra já o valor das linhas propostas (a tracejado), e muda à medida que se alteram quantidades e custos.
+function pilotDraftTotals(p){
+  if(!p||pilotAi.pid!==p.id||pilotAi.loading)return null;
+  const turns=pilotAi.data?.turns||[];if(!turns.length)return null;
+  const last=turns.at(-1);if(pilotAi.applied[p.id]===last.at)return null;
+  const r=last.reading;if(!r?.lines?.length)return null;
+  const cents=n=>Math.round((n+Number.EPSILON)*100)/100;let cost=0,missing=0,used=0;
+  r.lines.forEach((l,i)=>{if(pilotAi.off.has(i))return;const m=pilotAiMatch(l);const price=pilotAi.prices[i]!==undefined?pilotAi.prices[i]:m.price;const qty=pilotAi.qty[i]!==undefined?pilotAi.qty[i]:l.qty;
+    if(!(Number(qty)>0)||price===null||price===undefined||price===''){missing++;return;}used++;cost+=cents(Number(qty)*Number(price));});
+  cost=cents(cost);const markup=cents(cost*Number(p.markup)/100),subtotal=cents(cost+markup),tax=cents(subtotal*Number(p.vat)/100);
+  return {cost,subtotal,tax,total:cents(subtotal+tax),missing,used,base:calc(p)};
+}
+function pilotDraftRefresh(){
+  if(view!=='detail')return;const p=project(),d=pilotDraftTotals(p);
+  const card=document.querySelector('.pilot-aside .summary'),bar=document.querySelector('#pilot-draft');
+  if(card){card.classList.toggle('is-draft',!!d);
+    const set=(id,v)=>{const el=card.querySelector(id);if(el)el.textContent=v;};
+    const eb=card.querySelector('.eyebrow');
+    if(d){const t={cost:d.base.cost+d.cost,subtotal:d.base.subtotal+d.subtotal,tax:d.base.tax+d.tax,total:d.base.total+d.total};
+      if(eb)eb.textContent=p.lines.length?'RASCUNHO COM A PROPOSTA':'RASCUNHO PROPOSTO · POR APLICAR';
+      set('#summary-total',euro(t.subtotal));set('#summary-cost',euro(t.cost));set('#summary-tax',euro(t.tax));set('#summary-grand',euro(t.total));}
+    else if(eb)eb.textContent='RASCUNHO ATUAL';}
+  if(bar){bar.hidden=!d;if(d)bar.innerHTML=`<span class="pilot-draft-tag">Rascunho por aplicar</span><strong>${euro(d.subtotal)}</strong><span>sem IVA</span><strong>${euro(d.total)}</strong><span>com IVA</span>${d.missing?`<em>${d.missing} linha(s) ainda sem custo ou quantidade</em>`:''}`;}
 }
 // Descrição das linhas: mostra sempre o texto inteiro (a caixa cresce com o texto); Enter termina a edição.
 function pilotFitDesc(t){t.style.height='auto';t.style.height=t.scrollHeight+2+'px';}
@@ -390,7 +415,7 @@ function pilotAiHtml(p) {
       <textarea class="field" id="ai-ask" rows="2" maxlength="2000" placeholder="Ex.: são 2 portões iguais; usamos chapa de 3 mm; a montagem está incluída; não leva motor."></textarea>
       <div class="pilot-ai-actions"><button type="button" class="primary" data-ai-ask ${d.remaining?'':'disabled'}>Atualizar orçamento</button><button type="button" class="small ghost" data-ai-restart ${d.remaining?'':'disabled'}>Analisar de novo</button></div>
       ${history?`<ul class="pilot-ai-history">${history}</ul>`:''}</div></div>
-    ${err}<div class="pilot-ai-applybar">    <div class="pilot-ai-actions">${pilotAi.applied[p.id]===turns.at(-1).at?'<span class="smalltext muted">Esta leitura já foi aplicada. Se corrigires, a nova leitura pode ser aplicada outra vez (as linhas antigas ficam; apaga as que sobrarem).</span>':`<button type="button" class="primary" data-ai-apply ${r.lines.length||r.missing.length?'':'disabled'}>Aplicar ao orçamento e à memória</button>`}</div>
+    ${err}<div class="pilot-ai-applybar"><div class="pilot-draft" id="pilot-draft" hidden></div>    <div class="pilot-ai-actions">${pilotAi.applied[p.id]===turns.at(-1).at?'<span class="smalltext muted">Esta leitura já foi aplicada. Se corrigires, a nova leitura pode ser aplicada outra vez (as linhas antigas ficam; apaga as que sobrarem).</span>':`<button type="button" class="primary" data-ai-apply ${r.lines.length||r.missing.length?'':'disabled'}>Aplicar ao orçamento e à memória</button>`}</div>
 </div></section>`;
 }
 // Âmbito: cada item com decisão "fica fora" ou "entra no orçamento".
@@ -460,14 +485,15 @@ async function pilotAiRun(p,body) {
 }
 document.addEventListener('input',ev=>{
   const qf=ev.target.closest?.('[data-ai-qty]');
-  if(qf){const i=Number(qf.dataset.aiQty),v=qf.value.replace(',','.');if(v==='')delete pilotAi.qty[i];else if(Number.isFinite(Number(v))&&Number(v)>=0)pilotAi.qty[i]=Number(v);qf.closest('li')?.classList.toggle('pilot-ai-zero',!(Number(v)>0));return;}
+  if(qf){const i=Number(qf.dataset.aiQty),v=qf.value.replace(',','.');if(v==='')delete pilotAi.qty[i];else if(Number.isFinite(Number(v))&&Number(v)>=0)pilotAi.qty[i]=Number(v);qf.closest('li')?.classList.toggle('pilot-ai-zero',!(Number(v)>0));pilotDraftRefresh();return;}
   const ans=ev.target.closest?.('[data-ai-answer]');
   if(ans){pilotAi.answers[Number(ans.dataset.aiAnswer)]=ans.value;return;}
   const f=ev.target.closest?.('[data-ai-price]');
   if(!f)return;
   const i=Number(f.dataset.aiPrice),v=f.value.replace(',','.');
-  if(v===''){delete pilotAi.prices[i];return;}
+  if(v===''){delete pilotAi.prices[i];pilotDraftRefresh();return;}
   const n=Number(v);if(Number.isFinite(n)&&n>=0)pilotAi.prices[i]=n;
+  pilotDraftRefresh();
 });
 document.addEventListener('change',ev=>{
   if(ev.target.closest?.('[data-ai-price]')){render();return;}
