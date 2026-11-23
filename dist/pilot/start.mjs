@@ -35,9 +35,12 @@ function access(mode) {
       <button class="primary" type="submit">${titles[mode]}</button>
     </form></section></main>`;
 }
-function landing() {
+// Toda a gente passa pela página de entrada uma vez por sessão do separador; depois, recarregar vai direto à oficina.
+const entered=()=>{try{return sessionStorage.getItem('forja-entered')==='1'}catch{return false}};
+const markEntered=()=>{try{sessionStorage.setItem('forja-entered','1')}catch{}};
+function landing(me) {
   root.innerHTML=`<main class="pilot-landing2">
-  <header class="pl-top"><div class="pilot-brand"><span>f</span> Forja</div><a class="pl-login-link" href="#pl-login">Já tenho conta</a></header>
+  <header class="pl-top"><div class="pilot-brand"><span>f</span> Forja</div>${me?.user?'<button type="button" class="pl-login-link" data-pilot-action="enter">Entrar na tua oficina</button>':'<a class="pl-login-link" href="#pl-login">Já tenho conta</a>'}</header>
   <div class="pl-grid">
     <section class="pl-copy">
       <h1>Do esboço ao orçamento em minutos.</h1>
@@ -45,11 +48,11 @@ function landing() {
       <p id="pilot-message" class="pilot-message" role="alert" hidden></p>
       <button class="primary pilot-try pl-try" type="button" data-pilot-action="demo">Experimentar agora</button>
       <p class="pl-note">Abre uma oficina de demonstração, sem conta. Não envies dados pessoais de clientes.</p>
-      <section class="pl-login" id="pl-login" aria-labelledby="pl-login-title"><h2 id="pl-login-title">Já tenho conta</h2>
+      ${me?.user?`<section class="pl-login" id="pl-login"><h2>Já tens sessão iniciada</h2><p class="pl-note">${/@demo\.invalid$/.test(me.user.email||'')?'Oficina de demonstração':escape(me.user.email||'')}</p><div class="pl-login-row"><button type="button" class="primary" data-pilot-action="enter">Entrar na tua oficina</button><button type="button" data-pilot-action="logout">Sair</button></div></section>`:`<section class="pl-login" id="pl-login" aria-labelledby="pl-login-title"><h2 id="pl-login-title">Já tenho conta</h2>
         <form data-pilot-form="login"><div class="pl-fields"><label>Email<input class="field" name="email" type="email" autocomplete="username" required></label>
         <label>Palavra-passe<input class="field" name="password" type="password" required autocomplete="current-password" maxlength="128"></label></div>
         <div class="pl-login-row"><label class="pilot-show"><input type="checkbox" data-pilot-show> Mostrar palavra-passe</label><button type="submit">Entrar</button></div></form>
-      </section>
+      </section>`}
       <details class="muted smalltext pl-privacy"><summary>Privacidade</summary><p>A oficina é responsável pelos dados dos seus clientes. A Forja trata-os por conta da oficina para preparar orçamentos, com alojamento na UE e acesso limitado à equipa autorizada da oficina, da Forja e dos fornecedores contratados para prestar o serviço. Os dados pessoais ficam excluídos do treino de modelos. A Forja apaga os pedidos que não avancem até 90 dias após a receção e os restantes até 90 dias após o fecho do orçamento. O fim do piloto antecipa o apagamento, salvo obrigação legal. Para exercer direitos sobre os dados de um pedido, contacte a oficina.</p></details>
     </section>
     <figure class="pl-stage" aria-label="Exemplo: o pedido de 3 prateleiras em L em inox, a peça lida pela Forja e o rascunho do orçamento com as contas">
@@ -248,6 +251,7 @@ root.addEventListener('submit',async event=>{
       const data=Object.fromEntries(values);
       if(mode==='activate')data.invite=invite;
       await post('/'+mode,data);
+      markEntered();
       location.replace('/');
     }
   } catch(e) {alertText(e.message);}
@@ -262,7 +266,8 @@ root.addEventListener('click',async event=>{
   }
   try {
     if(button.dataset.pilotAction==='logout') await signOut();
-    if(button.dataset.pilotAction==='demo') {button.disabled=true;try{await post('/demo',{});location.replace('/');}finally{button.disabled=false;}}
+    if(button.dataset.pilotAction==='enter') {markEntered();location.replace('/');return;}
+    if(button.dataset.pilotAction==='demo') {button.disabled=true;try{await post('/demo',{});markEntered();location.replace('/');}finally{button.disabled=false;}}
     if(button.dataset.pilotAction==='refresh') await refreshInbox(true);
     if(button.dataset.pilotAction==='open-file') await openBlob('/admin/files/'+button.dataset.workshop+'/'+encodeURIComponent(button.dataset.id),button.dataset.name);
     if(button.dataset.pilotAction==='send-note') await sendResponse(button.closest('.pilot-drop'));
@@ -398,7 +403,7 @@ try {
   const me=await api('/me');
   if(invite)access('activate');
   else if(me.needsSetup && location.hash==='#configurar')access('setup');
-  else if(!me.user){landing();if(location.hash==='#demo'){history.replaceState(null,'',location.pathname);document.querySelector('[data-pilot-action="demo"]')?.click();}}
+  else if(!me.user||!entered())landing(me);
   else if(me.user.role==='admin'){await admin();setInterval(()=>refreshInbox(false).catch(()=>{}),20000);}
   else await workshop();
 } catch(error) {
