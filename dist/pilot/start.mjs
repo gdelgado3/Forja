@@ -40,7 +40,7 @@ function landing() {
   <header class="pl-top"><div class="pilot-brand"><span>f</span> Forja</div><a class="pl-login-link" href="#pl-login">Já tenho conta</a></header>
   <div class="pl-grid">
     <section class="pl-copy">
-      <h1>Do esboço ao orçamento, com as contas à vista.</h1>
+      <h1>Do esboço ao orçamento em minutos.</h1>
       <p class="pl-lead">A Forja lê pedidos de serralharia (texto, foto, esquiço ou PDF), tira as medidas, propõe as linhas com os preços do teu catálogo e diz o que falta perguntar ao cliente. Tu revês antes de enviar.</p>
       <p id="pilot-message" class="pilot-message" role="alert" hidden></p>
       <button class="primary pilot-try pl-try" type="button" data-pilot-action="demo">Experimentar agora</button>
@@ -52,22 +52,32 @@ function landing() {
       </section>
       <details class="muted smalltext pl-privacy"><summary>Privacidade</summary><p>A oficina é responsável pelos dados dos seus clientes. A Forja trata-os por conta da oficina para preparar orçamentos, com alojamento na UE e acesso limitado à equipa autorizada da oficina, da Forja e dos fornecedores contratados para prestar o serviço. Os dados pessoais ficam excluídos do treino de modelos. A Forja apaga os pedidos que não avancem até 90 dias após a receção e os restantes até 90 dias após o fecho do orçamento. O fim do piloto antecipa o apagamento, salvo obrigação legal. Para exercer direitos sobre os dados de um pedido, contacte a oficina.</p></details>
     </section>
-    <figure class="pl-stage" aria-label="Exemplo: um esboço de prateleiras em L e o rascunho de orçamento que a Forja prepara">
+    <figure class="pl-stage" aria-label="Exemplo: o pedido de 3 prateleiras em L em inox, a peça lida pela Forja e o rascunho do orçamento com as contas">
       <div class="pl-sketch" aria-hidden="true">
         <p class="pl-sketch-text">Boa tarde, preciso de 3 prateleiras em L para a cozinha, em inox. Medidas no desenho.</p>
-        <svg viewBox="0 0 320 200" role="presentation">
-          <path class="pl-part" d="M60 40 L60 140 L220 140" />
-          <g class="pl-cota"><path d="M60 166 H220 M60 158 V174 M220 158 V174"/><text x="140" y="188">250</text></g>
-          <g class="pl-cota"><path d="M32 40 V140 M24 40 H40 M24 140 H40"/><text x="16" y="94" transform="rotate(-90 16 94)">150</text></g>
-          <text class="pl-hand" x="100" y="58">comprimento 600</text>
-          <text class="pl-hand" x="100" y="80">inox 2 mm, escovado</text>
-          <text class="pl-hand pl-hand-strong" x="100" y="106">× 3</text>
+        <svg viewBox="0 0 440 236" role="presentation">
+          <defs><pattern id="pl-brush" width="6" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(30)"><rect width="6" height="3" fill="#e4e8e6"/><path d="M0 1.5 H6" stroke="#d3d9d6" stroke-width=".7"/></pattern></defs>
+          <g transform="translate(-30 18)">
+            <polygon class="pl-face pl-face-top" points="150,60 305.9,150 240.9,187.5 85,97.5"/>
+            <polygon class="pl-face pl-face-edge" points="85,97.5 240.9,187.5 240.9,191 85,101"/>
+            <polygon class="pl-face pl-face-edge" points="240.9,187.5 305.9,150 305.9,153.5 240.9,191"/>
+            <polygon class="pl-face pl-face-back" points="150,60 305.9,150 305.9,105 150,15"/>
+            <polygon class="pl-face pl-face-edge" points="150,15 305.9,105 309,103.2 153.1,13.2"/>
+            <g class="pl-holes"><ellipse cx="176" cy="45" rx="3.2" ry="4.4" transform="rotate(30 176 45)"/><ellipse cx="227.9" cy="75" rx="3.2" ry="4.4" transform="rotate(30 227.9 75)"/><ellipse cx="279.9" cy="105" rx="3.2" ry="4.4" transform="rotate(30 279.9 105)"/></g>
+            <g class="pl-cota"><path d="M85 101 L64 113 M240.9 191 L220 203 M68 110.6 L224 200.6"/><path class="pl-tick" d="M64 107 L72 114 M220 197 L228 204"/><text x="138" y="172" transform="rotate(30 138 172)">600</text></g>
+            <g class="pl-cota"><path d="M305.9 153.5 L327 165.5 M240.9 191 L262 203 M323 163.2 L258 200.7"/><path class="pl-tick" d="M319 161 L327 166 M254 198 L262 203"/><text x="302" y="192" transform="rotate(-30 302 192)">250</text></g>
+            <g class="pl-cota"><path d="M150 60 L129 48 M150 15 L129 3 M133 50.3 V5.3"/><path class="pl-tick" d="M129 50 L137 51 M129 5 L137 6"/><text x="122" y="30" transform="rotate(-90 122 30)">150</text></g>
+          </g>
+          <g class="pl-leader"><path d="M249.9 123 L300 46 H330"/><circle cx="249.9" cy="123" r="2.6"/><text x="334" y="50">3 furos Ø8</text></g>
+          <g class="pl-leader"><path d="M198 123 L250 98 M250 98 L300 98 H330"/><circle cx="198" cy="123" r="2.6"/><text x="334" y="102">Dobra a 90°</text></g>
+          <g class="pl-leader"><path d="M175 146 L300 150 H330"/><circle cx="175" cy="146" r="2.6"/><text x="334" y="154">Inox 304, 2 mm</text><text class="pl-leader-sub" x="334" y="172">escovado</text></g>
+          <g class="pl-leader"><text x="334" y="204">Quantidade: 3</text></g>
         </svg>
       </div>
       <div class="pl-quote">
         <div class="pl-quote-head"><strong>Rascunho do orçamento</strong><span>exemplo</span></div>
         <ol>
-          <li><span class="pl-q-desc">Chapa inox 304, 2 mm<small>(250 + 150) × 600 mm = 0,24 m², × 3 = 0,72 m²</small></span><span class="pl-q-num">56,16 €</span></li>
+          <li><span class="pl-q-desc">Chapa inox 304, 2 mm<small>(250 + 150) × 600 mm × 3 = 0,72 m²</small></span><span class="pl-q-num">56,16 €</span></li>
           <li><span class="pl-q-desc">Corte laser<small>perímetro 2 m por peça, × 3 = 6 m</small></span><span class="pl-q-num">15,00 €</span></li>
           <li><span class="pl-q-desc">Quinagem<small>1 dobra por peça, × 3</small></span><span class="pl-q-num">10,50 €</span></li>
           <li><span class="pl-q-desc">Escovado<small>0,72 m²</small></span><span class="pl-q-num">10,80 €</span></li>

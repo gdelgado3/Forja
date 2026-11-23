@@ -854,3 +854,19 @@
   .pilot-landing2 .pl-fields { grid-template-columns:1fr; }
   .pilot-landing2 .pl-login-row { flex-direction:column; align-items:stretch; }
 }
+
+/* Desenho técnico da peça lida (isométrico) */
+.pilot-landing2 .pl-face { stroke:#3f4c46; stroke-width:1.3; stroke-linejoin:round; }
+.pilot-landing2 .pl-face-top { fill:url(#pl-brush); }
+.pilot-landing2 .pl-face-back { fill:#eef1ef; }
+.pilot-landing2 .pl-face-edge { fill:#c5cdc9; }
+.pilot-landing2 .pl-holes ellipse { fill:#fffefa; stroke:#3f4c46; stroke-width:1.1; }
+.pilot-landing2 .pl-tick { stroke:#5b6a63 !important; stroke-width:1.6 !important; }
+.pilot-landing2 .pl-leader path { fill:none; stroke:#214236; stroke-width:1.1; }
+.pilot-landing2 .pl-leader circle { fill:#214236; }
+.pilot-landing2 .pl-leader text { font:600 14px "DM Sans",system-ui,sans-serif; fill:#1d2b25; }
+.pilot-landing2 .pl-leader .pl-leader-sub { font-weight:400; font-size:13px; fill:#5b6a63; }
+.pilot-landing2 .pl-titleblock rect, .pilot-landing2 .pl-titleblock path { fill:none; stroke:#8b9792; stroke-width:1; }
+.pilot-landing2 .pl-titleblock text { font:600 13px "DM Sans",system-ui,sans-serif; fill:#1d2b25; }
+.pilot-landing2 .pl-titleblock .pl-tb-qty { font-weight:700; text-anchor:middle; }
+.pilot-landing2 .pl-sketch { width:82%; }
