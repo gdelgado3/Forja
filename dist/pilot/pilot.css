@@ -1054,3 +1054,32 @@
 .pilot-mode .pilot-draft span { font-size:14px; color:#4d6157; }
 .pilot-mode .pilot-draft .pilot-draft-tag { font-weight:700; color:#173226; margin-right:6px; }
 .pilot-mode .pilot-draft em { flex-basis:100%; font-size:13.5px; color:#7a4312; font-style:normal; }
+
+/* ---------- Simulação do exemplo: pedido → forja em avanço rápido → orçamento ---------- */
+.pilot-intro { position:fixed; inset:0; z-index:100; display:grid; place-items:center; padding:16px; background:rgb(16 30 24 / 72%); backdrop-filter:blur(3px); animation:pi-fade .2s ease-out; }
+.pilot-intro.out { opacity:0; transition:opacity .25s; }
+@keyframes pi-fade { from { opacity:0; } }
+.pilot-intro .pi-box { position:relative; width:min(640px,100%); min-height:420px; padding:22px 24px 26px; border-radius:18px; color:#fff; text-align:center;
+  background:#1a3329 radial-gradient(120% 80% at 50% 0%, #2a5443 0%, #1a3329 60%); box-shadow:0 30px 60px -20px rgb(0 0 0 / 55%); }
+.pilot-intro .pi-steps { display:flex; justify-content:center; flex-wrap:wrap; gap:8px; margin-bottom:18px; }
+.pilot-intro .pi-steps span { padding:6px 12px; border-radius:999px; font-size:13.5px; font-weight:700; color:#a9c2b5; border:1px solid #3f6655; }
+.pilot-intro .pi-steps span.on { background:#f0c35a; border-color:#f0c35a; color:#2a1d05; }
+.pilot-intro .pi-paper { margin:0 auto; max-width:460px; padding:18px 20px; border-radius:6px; background:#fffefa; color:#33433c; text-align:left; transform:rotate(-1.2deg); animation:pi-drop .5s cubic-bezier(.2,.9,.3,1.2); }
+@keyframes pi-drop { from { transform:translateY(-30px) rotate(-4deg); opacity:0; } }
+.pilot-intro .pi-from { font-size:12.5px; color:#6a7872; margin:0 0 6px; }
+.pilot-intro .pi-paper p { margin:0 0 8px; font-style:italic; line-height:1.5; }
+.pilot-intro .pi-paper svg { width:100%; height:auto; display:block; }
+.pilot-intro .pi-forge h2 { color:#fff; font-size:24px; margin:6px 0 4px; }
+.pilot-intro .pilot-forge svg { width:200px; margin:0 auto; display:block; }
+.pilot-intro .pf-anvil { fill:#0f2219; stroke:#4d7a64; stroke-width:1.5; } .pilot-intro .pf-piece { fill:#f2a35b; filter:drop-shadow(0 0 6px #f2a35b); }
+.pilot-intro .pf-head { fill:#b9c9c1; } .pilot-intro .pf-handle { fill:#9a7650; } .pilot-intro .pf-sparks circle { fill:#ffd08a; opacity:0; }
+.pilot-intro .pf-hammer { transform-box:view-box; transform-origin:152px 43px; animation:pi-strike .62s cubic-bezier(.5,0,.6,1) infinite; }
+.pilot-intro .pf-sparks circle { animation:pi-spark .62s ease-out infinite; }
+.pilot-intro .pf-sparks circle:nth-child(1){--dx:-30px;--dy:-24px} .pilot-intro .pf-sparks circle:nth-child(2){--dx:26px;--dy:-30px} .pilot-intro .pf-sparks circle:nth-child(3){--dx:-6px;--dy:-38px} .pilot-intro .pf-sparks circle:nth-child(4){--dx:34px;--dy:-12px} .pilot-intro .pf-sparks circle:nth-child(5){--dx:-36px;--dy:-8px}
+@keyframes pi-strike { 0%,35%{transform:rotate(32deg)} 55%{transform:rotate(-1deg)} 62%{transform:rotate(0)} 100%{transform:rotate(32deg)} }
+@keyframes pi-spark { 0%,52%{opacity:0;transform:none} 56%{opacity:1} 100%{opacity:0;transform:translate(var(--dx),var(--dy))} }
+.pilot-intro .pi-ff { display:flex; justify-content:center; align-items:baseline; gap:12px; margin:0; color:#cfe3d6; font-variant-numeric:tabular-nums; }
+.pilot-intro .pi-ff span { font-size:13px; font-weight:700; color:#f0c35a; letter-spacing:.02em; }
+.pilot-intro .pi-ff strong { font-size:20px; color:#fff; }
+.pilot-intro .pi-msg { min-height:1.5em; margin:10px 0 0; color:#f0c35a; font-weight:600; }
+.pilot-intro .pi-skip { position:absolute; right:14px; bottom:12px; background:none; border:0; color:#a9c2b5; text-decoration:underline; cursor:pointer; font-size:14px; min-height:0; padding:4px; }

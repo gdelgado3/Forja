@@ -109,6 +109,30 @@ function pilotMemoryView(p){
     <div class="pilot-mem-body">${body||'<div class="empty">Nenhum registo.</div>'}</div></div></section>`;
 }
 document.addEventListener('click',e=>{const b=e.target.closest?.('[data-mem-kind]');if(!b)return;e.preventDefault();pilotMemKind=b.dataset.memKind;render();});
+// Simulação do exemplo: mostra o pedido, a Forja a forjar (em avanço rápido) e depois abre o orçamento.
+function pilotExampleIntro(done){
+  if(document.querySelector('.pilot-intro'))return;
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches){done();return;}
+  const el=document.createElement('div');el.className='pilot-intro';el.setAttribute('role','dialog');el.setAttribute('aria-label','Simulação do pedido de exemplo');
+  el.innerHTML=`<div class="pi-box">
+    <div class="pi-steps"><span class="on">1. O pedido chega</span><span>2. A Forja lê e faz as contas</span><span>3. O orçamento</span></div>
+    <div class="pi-stage pi-doc"><div class="pi-paper"><p class="pi-from">WhatsApp · Cliente de exemplo</p><p>Boa tarde, preciso de 3 prateleiras em L para a cozinha, em inox escovado. Medidas no desenho.</p>
+      <svg viewBox="0 0 330 124" aria-hidden="true"><path d="M40 20 V90 H200" fill="none" stroke="#3f4c46" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/><path d="M40 106 H200 M40 100 V112 M200 100 V112 M18 20 V90 M12 20 H24 M12 90 H24" stroke="#8b9792" stroke-width="1.4" fill="none"/><text x="120" y="118" text-anchor="middle" font-size="12" fill="#5b6a63">250</text><text x="8" y="58" font-size="12" fill="#5b6a63" transform="rotate(-90 8 58)">150</text><text x="214" y="40" font-size="12" fill="#3f4c46">comprimento 600</text><text x="214" y="58" font-size="12" fill="#3f4c46">inox 2 mm</text><text x="214" y="78" font-size="14" font-weight="700" fill="#1d2b25">× 3</text></svg></div></div>
+    <div class="pi-stage pi-forge" hidden><div class="pilot-forge pi-fast"><svg viewBox="0 0 160 110"><g class="pf-hammer"><rect class="pf-handle" x="90" y="40" width="64" height="7" rx="3"/><rect class="pf-head" x="73" y="28" width="22" height="28" rx="4"/></g><path class="pf-anvil" d="M30 62 H128 C128 70 118 74 104 74 L96 74 L100 92 H58 L62 74 L44 74 C36 74 30 68 30 62 Z"/><rect class="pf-piece" x="70" y="56" width="30" height="6" rx="2"/><g class="pf-sparks"><circle cx="78" cy="54" r="1.8"/><circle cx="90" cy="52" r="1.6"/><circle cx="84" cy="50" r="1.4"/><circle cx="96" cy="54" r="1.5"/><circle cx="74" cy="52" r="1.3"/></g></svg></div>
+      <h2>A forjar o teu orçamento</h2><p class="pi-ff"><span>⏩ avanço rápido</span><strong class="pi-clock">0:00</strong></p><p class="pi-msg">A ler o pedido e o desenho…</p></div>
+    <button type="button" class="pi-skip">Saltar</button></div>`;
+  document.body.appendChild(el);
+  const timers=[],at=(ms,f)=>timers.push(setTimeout(f,ms));
+  const finish=()=>{timers.forEach(clearTimeout);el.classList.add('out');setTimeout(()=>{el.remove();done();},250);};
+  el.querySelector('.pi-skip').onclick=finish;
+  const steps=el.querySelectorAll('.pi-steps span');
+  at(1900,()=>{el.querySelector('.pi-doc').hidden=true;el.querySelector('.pi-forge').hidden=false;steps[1].classList.add('on');
+    const t0=Date.now(),clock=el.querySelector('.pi-clock');const iv=setInterval(()=>{const s=Math.min(162,Math.round((Date.now()-t0)/2600*162));clock.textContent=`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;},60);timers.push(iv);});
+  const msgs=['A tirar as medidas: (250 + 150) × 600 mm','A procurar os preços no teu catálogo','A ver o que falta perguntar ao cliente','A montar o rascunho do orçamento'];
+  msgs.forEach((m,i)=>at(2400+i*520,()=>{el.querySelector('.pi-msg').textContent=m;}));
+  at(4600,()=>{steps[2].classList.add('on');});
+  at(4900,finish);
+}
 // O orçamento obtém-se em 1. Pedido; a proposta revê-se em 2. Orçamento.
 function pilotAiStage(p){if(!p||pilotAi.pid!==p.id)return 'none';if(pilotAi.loading)return 'loading';return pilotAi.data?.turns?.length?'result':'none';}
 function pilotAiPedido(p){
@@ -735,9 +759,10 @@ document.addEventListener('click',async ev=>{
     return;
   }
   if(target.hasAttribute('data-pilot-example')) {
+    pilotExampleIntro(()=>{
     if(!state.projects.some(p=>p.id==='exemplo')){const ex=pilotExampleProject();ex.lines.forEach(l=>pilotAutoPrice(l,{withUnit:true,keepSource:!!l.source}));state.projects.push(ex);}
-    selected='exemplo';view='detail';tab='orcamento';persist();render();
-    window.forjaPilot.flush().then(()=>window.forjaPilot.refreshResponses());
+    selected='exemplo';view='detail';tab='orcamento';persist();render();scrollTo({top:0});
+    window.forjaPilot.flush().then(()=>window.forjaPilot.refreshResponses());});
   } else if(target.dataset.priceCheck) {
     const p=project();
     p.priceCheck=p.priceCheck===target.dataset.priceCheck?'':target.dataset.priceCheck;
