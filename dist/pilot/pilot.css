@@ -1014,3 +1014,15 @@
 .pilot-mode .pilot-ai-sec > h3:first-child { margin-top:4px; }
 .pilot-mode .pilot-ai-intro .pilot-ai-reply { margin-top:0; }
 .pilot-mode .pilot-ai-applybar { position:sticky; bottom:0; z-index:5; margin:16px -4px -4px; padding:12px 4px 4px; background:linear-gradient(to top, #fff 80%, rgb(255 255 255 / 0%)); border-top:1px solid #e6ebe5; }
+
+/* ---------- Memória do projeto: menu vertical à esquerda ---------- */
+.pilot-mode .pilot-mem-grid { display:grid; grid-template-columns:220px minmax(0,1fr); gap:20px; margin-top:12px; }
+.pilot-mode .pilot-mem-nav { display:grid; gap:8px; align-content:start; }
+.pilot-mode .pilot-mem-nav button { display:flex; justify-content:space-between; align-items:center; min-height:48px; padding:0 16px; border-radius:12px; border:1px solid #dfe5df; background:#fff; font-weight:700; font-size:15px; color:#2b4236; cursor:pointer; text-align:left; }
+.pilot-mode .pilot-mem-nav button b { display:grid; place-items:center; min-width:26px; height:24px; border-radius:999px; background:#eef1ee; font-size:13px; }
+.pilot-mode .pilot-mem-nav button.on { background:#214236; color:#fff; border-color:#214236; }
+.pilot-mode .pilot-mem-nav button.on b { background:#d9f0c4; color:#173226; }
+.pilot-mode .pilot-mem-body { display:grid; gap:12px; align-content:start; }
+.pilot-mode .pilot-mem-act { list-style:none; margin:0; padding:0 0 0 16px; border-left:2px solid #d9e5d9; display:grid; gap:14px; }
+.pilot-mode .pilot-mem-act small { color:#6a7872; } .pilot-mode .pilot-mem-act p { margin:2px 0; } .pilot-mode .pilot-mem-act span { font-size:13px; color:#2f5a47; }
+@media (max-width:760px){ .pilot-mode .pilot-mem-grid { grid-template-columns:1fr; } .pilot-mode .pilot-mem-nav { grid-auto-flow:column; overflow-x:auto; } .pilot-mode .pilot-mem-nav button { white-space:nowrap; gap:10px; } }

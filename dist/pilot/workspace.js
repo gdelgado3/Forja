@@ -69,6 +69,21 @@ function pilotPendingChip(p){
     <ul>${pend.slice(0,6).map(n=>`<li>${esc(n.text)}</li>`).join('')||'<li>Confirma os dados antes de orçar.</li>'}</ul>
     <button type="button" class="small" data-action="tab" data-tab="memoria">Abrir memória do projeto</button></div></details>`;
 }
+// Memória do projeto por momentos: um menu vertical à esquerda (pendentes, decisões, …, atividade) e só esse grupo à direita.
+let pilotMemKind='';
+function pilotMemoryView(p){
+  const order=['Pendente','Decisão','Hipótese','Confirmado'];
+  const kinds=[...new Set(p.memory.map(m=>m.kind))].sort((a,b)=>(order.indexOf(a)+1||9)-(order.indexOf(b)+1||9));
+  const plural=k=>({Pendente:'Pendentes',Decisão:'Decisões',Hipótese:'Hipóteses',Confirmado:'Confirmados'}[k]||k);
+  if(pilotMemKind!=='__act' && !kinds.includes(pilotMemKind))pilotMemKind=kinds[0]||'__act';
+  const items=p.memory.filter(m=>m.kind===pilotMemKind);
+  const body=pilotMemKind==='__act'?`<ol class="pilot-mem-act">${p.events.map(e=>`<li><small>${date(e.created)}</small><p>${esc(e.text)}</p><span>${esc(e.source)}</span></li>`).join('')||'<li><p>Sem atividade.</p></li>'}</ol>`
+    :items.map(m=>`<article class="memory-item">${badge(m.kind)}<p>${esc(m.text)}</p><footer><span>↳ ${esc(m.source)}<br>${date(m.created)}${m.confirmed?' · Confirmado manualmente em '+date(m.confirmed):''}</span>${m.kind!=='Confirmado'?`<button class="small ghost" data-action="confirm-memory" data-id="${m.id}">Confirmar ✓</button>`:''}</footer></article>`).join('');
+  return `<section class="card card-pad pilot-mem"><div class="card-title"><div><h2>O projeto não se esquece.</h2><p class="smalltext muted">Decisões, hipóteses e perguntas por resolver, cada uma no seu sítio.</p></div><button class="small primary" data-action="add-memory">+ Registar</button></div>
+    <div class="pilot-mem-grid"><nav class="pilot-mem-nav" aria-label="Grupos da memória">${kinds.map(k=>`<button type="button" data-mem-kind="${esc(k)}" class="${pilotMemKind===k?'on':''}" aria-pressed="${pilotMemKind===k}">${esc(plural(k))}<b>${p.memory.filter(m=>m.kind===k).length}</b></button>`).join('')}<button type="button" data-mem-kind="__act" class="${pilotMemKind==='__act'?'on':''}" aria-pressed="${pilotMemKind==='__act'}">Atividade<b>${p.events.length}</b></button></nav>
+    <div class="pilot-mem-body">${body||'<div class="empty">Nenhum registo.</div>'}</div></div></section>`;
+}
+document.addEventListener('click',e=>{const b=e.target.closest?.('[data-mem-kind]');if(!b)return;e.preventDefault();pilotMemKind=b.dataset.memKind;render();});
 // O orçamento obtém-se em 1. Pedido; a proposta revê-se em 2. Orçamento.
 function pilotAiStage(p){if(!p||pilotAi.pid!==p.id)return 'none';if(pilotAi.loading)return 'loading';return pilotAi.data?.turns?.length?'result':'none';}
 function pilotAiPedido(p){
