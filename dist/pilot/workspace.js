@@ -545,7 +545,7 @@ document.addEventListener('click',async ev=>{
       <h3>Artigos</h3>
       <label class="sr-only" for="pc-text">Artigos</label><textarea class="field pilot-catalog-text" id="pc-text" rows="12" placeholder="Chapa inox 2 mm;m²;78&#10;Tubo aço 40×40×2;m;4,50&#10;Montagem em obra;h;35">${esc(rows)}</textarea>
       <label>Ou importar a tabela de preços dos fornecedores (Excel .xlsx ou CSV)<input class="field" id="pc-file" type="file" accept=".xlsx,.csv,.txt,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></label>
-      <p class="smalltext muted">Sem Excel à mão? <button type="button" class="small" data-pilot-sample-catalog>Experimentar com um catálogo de exemplo</button> <a href="/pilot/catalogo-exemplo.xlsx" download>descarregar o Excel de exemplo</a> (preços inventados)</p>
+      <p class="smalltext muted">Sem tabela completa? <button type="button" class="small" data-pilot-sample-catalog>Juntar catálogo de referência (≈200 artigos)</button> <a href="/pilot/catalogo-exemplo.xlsx" download>descarregar o Excel</a>. Aço, inox, perfis, ferragens e processos, com preços fictícios marcados “Referência”: junta-se ao teu catálogo sem apagar nada e deves substituí-los pelos teus.</p>
       <label>Ou ler orçamentos antigos (PDF com texto ou .txt)<input class="field" id="pc-quotes" type="file" multiple accept=".pdf,.txt,application/pdf,text/plain"></label>
       <p class="smalltext muted">Unidades: un, m, m², m³, kg ou h. Preços por barra são convertidos para metro quando o nome diz o comprimento. Separa com ponto e vírgula ou tabulação. Até 2000 artigos.</p>
       <p id="pc-status" class="pilot-message" role="alert" hidden></p>
@@ -721,7 +721,7 @@ function pilotConfidence(l) {
   if(!m)return '<span class="pilot-conf pilot-conf-none" title="Linha sem correspondência calculada">—</span>';
   if(m.hourly && !m.manual)return `<span class="pilot-conf pilot-conf-mid" title="Sem artigo de horas no catálogo: usa o custo por hora de partida da oficina">Custo/hora da oficina</span>`;
   if(m.manual)return `<span class="pilot-conf pilot-conf-manual" title="Custo alterado à mão${m.label?' · catálogo: '+esc(m.label):''}">Manual</span>`;
-  if(!m.applied)return `<span class="pilot-conf pilot-conf-low" title="${m.label?'Melhor artigo: '+esc(m.label):'Catálogo vazio'}"><span class="pilot-bar" aria-hidden="true"><span style="width:${m.score||0}%"></span></span>Sem corresp.${m.label?' · '+m.score+'%':''}</span>`;
+  if(!m.applied)return `<span class="pilot-conf pilot-conf-low" title="${m.label?'Artigo mais parecido: '+esc(m.label)+' ('+m.score+'%), não é o mesmo':'Catálogo vazio'}">Sem artigo no catálogo · indicar custo</span>`;
   const level=m.score>=85?'high':'mid';
   return `<span class="pilot-conf pilot-conf-${level}" title="Artigo do catálogo: ${esc(m.label)}"><span class="pilot-bar" aria-hidden="true"><span style="width:${m.score}%"></span></span>${level==='high'?'Alta':'Média'} · ${m.score}%</span>${pilotAgeChip(m.label)}`;
 }
