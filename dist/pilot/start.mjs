@@ -398,7 +398,7 @@ try {
   const me=await api('/me');
   if(invite)access('activate');
   else if(me.needsSetup && location.hash==='#configurar')access('setup');
-  else if(!me.user)landing();
+  else if(!me.user){landing();if(location.hash==='#demo'){history.replaceState(null,'',location.pathname);document.querySelector('[data-pilot-action="demo"]')?.click();}}
   else if(me.user.role==='admin'){await admin();setInterval(()=>refreshInbox(false).catch(()=>{}),20000);}
   else await workshop();
 } catch(error) {
