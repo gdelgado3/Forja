@@ -37,10 +37,10 @@ function renderPilotWorkspace() {
   };
   $('#app').innerHTML=`<div class="pilot-office"><header class="pilot-header no-print"><div class="pilot-brand"><span>f</span> Forja</div>
     <strong>${esc(state.settings.company)}</strong><div class="pilot-header-actions">
-    ${isDetail||pilotPage!=='home'?'<button data-pilot-page="home">Página inicial</button>':''}
+    ${isDetail?pilotPendingChip(project()):''}${isDetail||pilotPage!=='home'?'<button data-pilot-page="home">Página inicial</button>':''}
     <button data-action="export">Exportar cópia</button><button data-pilot-action="logout">Sair</button></div></header>
     <main class="pilot-content"><div class="pilot-sync no-print" id="pilot-save-status" role="status">${esc(window.forjaPilot.status())}</div>
-    ${pilotQuickHtml()}<section id="pilot-responses" class="no-print"></section>${isDetail&&tab==='orcamento'?pilotAiTop(project()):''}${isDetail?detail(project()):projectsHtml()}${isDetail&&tab==='pedido'?pilotAiPedido(project()):''}${isDetail?pilotPriceCheck(project()):''}</main></div>`;
+    ${!isDetail&&pilotPage==='home'?'<section id="pilot-responses" class="no-print"></section>':''}${isDetail&&tab==='orcamento'?pilotAiTop(project()):''}${isDetail?detail(project()):projectsHtml()}${isDetail&&tab==='pedido'?pilotAiPedido(project()):''}${isDetail?pilotPriceCheck(project()):''}</main></div>`;
   renderPilotResponses();
   // No separador Pedido, o botão Obter orçamento fica logo a seguir aos anexos (sem espaço vazio).
   const ai=document.querySelector('#pilot-ai'),files=document.querySelector('#anexos-card');
@@ -52,6 +52,23 @@ function pilotFitDesc(t){t.style.height='auto';t.style.height=t.scrollHeight+2+'
 document.addEventListener('input',e=>{if(e.target.matches?.('textarea.desc'))pilotFitDesc(e.target);});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.matches?.('textarea.desc')){e.preventDefault();e.target.blur();}});
 addEventListener('resize',()=>document.querySelectorAll('textarea.desc').forEach(pilotFitDesc));
+// Por baixo do conteúdo do separador: últimos acontecimentos e a nota de revisão humana (fora da coluna da direita).
+function pilotDetailExtras(p){
+  const ev=p.events.slice(0,3);
+  return `<div class="pilot-extras no-print">
+    <details class="pilot-events"${pilotFold.events?' open':''} data-fold="events"><summary><h2>Últimos acontecimentos</h2><span>${ev.length?date(ev[0].created):''}</span></summary>
+      <ol>${ev.map(e=>`<li><small>${date(e.created)}</small><p>${esc(e.text)}</p><span>${esc(e.source)}</span></li>`).join('')||'<li><p>Sem acontecimentos.</p></li>'}</ol></details>
+    <div class="pilot-review-note">${p.demo?'<b>Exemplo fictício.</b> Preços e horas ilustrativos. Substitui-os pelos valores da oficina.':'<b>Revisão humana.</b> Confirma medidas, materiais, processos e preços antes de enviar o orçamento.'}</div>
+  </div>`;
+}
+// Lembrete "Antes de fechar" no topo: quantos pendentes e quais, a um clique.
+function pilotPendingChip(p){
+  const pend=p.memory.filter(n=>n.kind==='Pendente');
+  return `<details class="pilot-pending${pend.length?' has':''}"><summary><span class="pilot-pending-dot" aria-hidden="true"></span>Antes de fechar <b>${pend.length}</b></summary>
+    <div class="pilot-pending-panel"><strong>${pend.length?pend.length+' pendente(s) antes de enviar':'Sem pendentes registados'}</strong>
+    <ul>${pend.slice(0,6).map(n=>`<li>${esc(n.text)}</li>`).join('')||'<li>Confirma os dados antes de orçar.</li>'}</ul>
+    <button type="button" class="small" data-action="tab" data-tab="memoria">Abrir memória do projeto</button></div></details>`;
+}
 // O orçamento obtém-se em 1. Pedido; a proposta revê-se em 2. Orçamento.
 function pilotAiStage(p){if(!p||pilotAi.pid!==p.id)return 'none';if(pilotAi.loading)return 'loading';return pilotAi.data?.turns?.length?'result':'none';}
 function pilotAiPedido(p){
@@ -144,7 +161,7 @@ function pilotPriceCheck(p) {
     <p class="smalltext muted">${p.priceCheck==='under'?'Abaixo do preço certo: é o erro mais caro para a oficina. A Forja aprende a arredondar para cima.':'Ajuda a Forja a nunca orçar abaixo do custo.'}</p></details></section>`;
 }
 let pilotFeedback={rating:null,text:'',sent:false};
-let pilotFold={check:false,feedback:false};
+let pilotFold={check:false,feedback:false,events:false};
 // Cronómetro da análise: só arranca quando o servidor começa mesmo a analisar; antes disso diz "a preparar".
 setInterval(()=>{const el=document.querySelector('#pilot-ai-elapsed'),st=pilotAi?.data?.started;if(!el||!st||!pilotAi.loading)return;const s=Math.max(0,Math.round((Date.now()-new Date(st))/1000));el.textContent=`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;},1000);
 // Página inicial e páginas próprias: histórico completo, avaliar orçamentos e feedback.
@@ -823,3 +840,5 @@ function pilotParseCatalog(text) {
     return item;
   });
 }
+// Fecha o lembrete "Antes de fechar" ao clicar fora.
+document.addEventListener('click',e=>{const d=document.querySelector('details.pilot-pending[open]');if(d&&!d.contains(e.target))d.open=false;});
