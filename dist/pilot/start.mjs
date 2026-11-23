@@ -56,6 +56,7 @@ function landing(me) {
       <details class="muted smalltext pl-privacy"><summary>Privacidade</summary><p>A oficina é responsável pelos dados dos seus clientes. A Forja trata-os por conta da oficina para preparar orçamentos, com alojamento na UE e acesso limitado à equipa autorizada da oficina, da Forja e dos fornecedores contratados para prestar o serviço. Os dados pessoais ficam excluídos do treino de modelos. A Forja apaga os pedidos que não avancem até 90 dias após a receção e os restantes até 90 dias após o fecho do orçamento. O fim do piloto antecipa o apagamento, salvo obrigação legal. Para exercer direitos sobre os dados de um pedido, contacte a oficina.</p></details>
     </section>
     <figure class="pl-stage" aria-label="Exemplo: o pedido de 3 prateleiras em L em inox, a peça lida pela Forja e o rascunho do orçamento com as contas">
+      <div class="pl-strike" aria-hidden="true"><svg viewBox="0 0 140 130"><g class="pl-hm"><rect x="38" y="94" width="92" height="10" rx="4"/><rect x="14" y="76" width="30" height="44" rx="5"/></g><g class="pl-sp"><circle cx="22" cy="122" r="2.6"/><circle cx="34" cy="124" r="2.2"/><circle cx="12" cy="122" r="2"/><circle cx="44" cy="122" r="2"/><circle cx="28" cy="126" r="1.8"/></g></svg></div>
       <div class="pl-sketch" aria-hidden="true">
         <p class="pl-sketch-text">Boa tarde, preciso de 3 prateleiras em L para a cozinha, em inox. Medidas no desenho.</p>
         <svg viewBox="0 0 440 236" role="presentation">
