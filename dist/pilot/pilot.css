@@ -838,26 +838,46 @@
 /* O momento: o pedido aparece, o martelo bate duas vezes e o orçamento surge ao lado, linha a linha. */
 .pilot-landing2 .pl-strike { position:absolute; left:24%; top:70px; width:150px; z-index:3; pointer-events:none; opacity:0; }
 .pilot-landing2 .pl-strike svg { width:100%; height:auto; display:block; overflow:visible; }
-.pilot-landing2 .pl-hm rect { fill:#214236; } .pilot-landing2 .pl-hm rect:first-child { fill:#9a7650; }
-.pilot-landing2 .pl-sp circle { fill:#1f1f1c; opacity:0; } .pilot-landing2 .pl-flash { fill:#3a3a35; opacity:0; transform-box:fill-box; transform-origin:center; }
+.pilot-landing2 .pl-hm { filter:drop-shadow(0 3px 3px rgb(29 43 37 / 28%)); }
+.pilot-landing2 .pl-sp circle, .pilot-landing2 .pl-sp path { fill:#1f1f1c; opacity:0; }
+.pilot-landing2 .pl-flash, .pilot-landing2 .pl-shadow { opacity:0; transform-box:fill-box; transform-origin:center; }
 @media (prefers-reduced-motion: no-preference) {
+  .pilot-landing2 { --pl-d:1.4s; }
   .pilot-landing2 .pl-strike { animation:pl-show 1.5s linear forwards; }
-  .pilot-landing2 .pl-hm { transform-box:view-box; transform-origin:128px 99px; animation:pl-hit 1.4s cubic-bezier(.5,0,.6,1) forwards; }
-  .pilot-landing2 .pl-sp circle { animation:pl-spk 1.4s cubic-bezier(.2,.7,.3,1) forwards; }
-  .pilot-landing2 .pl-sp circle:nth-of-type(1){--x:-11px;--y:-88px;animation-delay:0.04s} .pilot-landing2 .pl-sp circle:nth-of-type(2){--x:74px;--y:-37px;animation-delay:0.04s} .pilot-landing2 .pl-sp circle:nth-of-type(3){--x:2px;--y:-90px;animation-delay:0s} .pilot-landing2 .pl-sp circle:nth-of-type(4){--x:-63px;--y:-58px;animation-delay:0.02s} .pilot-landing2 .pl-sp circle:nth-of-type(5){--x:34px;--y:-97px;animation-delay:0.04s} .pilot-landing2 .pl-sp circle:nth-of-type(6){--x:-64px;--y:-36px;animation-delay:0s} .pilot-landing2 .pl-sp circle:nth-of-type(7){--x:-91px;--y:-50px;animation-delay:0.02s} .pilot-landing2 .pl-sp circle:nth-of-type(8){--x:28px;--y:-50px;animation-delay:0s} .pilot-landing2 .pl-sp circle:nth-of-type(9){--x:108px;--y:-34px;animation-delay:0.02s} .pilot-landing2 .pl-sp circle:nth-of-type(10){--x:36px;--y:-85px;animation-delay:0.04s} .pilot-landing2 .pl-sp circle:nth-of-type(11){--x:-44px;--y:-35px;animation-delay:0s} .pilot-landing2 .pl-sp circle:nth-of-type(12){--x:4px;--y:-58px;animation-delay:0s} .pilot-landing2 .pl-sp circle:nth-of-type(13){--x:-50px;--y:-48px;animation-delay:0.04s} .pilot-landing2 .pl-sp circle:nth-of-type(14){--x:-78px;--y:-28px;animation-delay:0.02s}
-  .pilot-landing2 .pl-flash { animation:pl-flash 1.4s linear forwards; }
-  .pilot-landing2 .pl-sketch { animation:pl-thump 1.4s ease-out; }
+  .pilot-landing2 .pl-hm { transform-box:view-box; transform-origin:130px 99.5px; animation:pl-hit var(--pl-d) forwards; }
+  .pilot-landing2 .pl-shadow { animation:pl-shadow var(--pl-d) forwards; }
+  .pilot-landing2 .pl-flash { animation:pl-flash var(--pl-d) linear forwards; }
+  .pilot-landing2 .pl-sa { animation:pl-xa var(--pl-d) forwards; animation-delay:var(--d); }
+  .pilot-landing2 .pl-sa > * { animation:pl-ya var(--pl-d) forwards; animation-delay:var(--d); }
+  .pilot-landing2 .pl-sb { animation:pl-xb var(--pl-d) forwards; animation-delay:var(--d); }
+  .pilot-landing2 .pl-sb > * { animation:pl-yb var(--pl-d) forwards; animation-delay:var(--d); }
+  .pilot-landing2 .pl-sketch { animation:pl-thump var(--pl-d) linear; }
   .pilot-landing2 .pl-quote { opacity:0; transform:translateY(14px); animation:pl-in .45s ease-out 1.45s forwards; }
   .pilot-landing2 .pl-quote li, .pilot-landing2 .pl-q-ask, .pilot-landing2 .pl-q-total { opacity:0; transform:translateY(6px); animation:pl-in .35s ease-out forwards; }
   .pilot-landing2 .pl-quote li:nth-child(1){animation-delay:1.75s} .pilot-landing2 .pl-quote li:nth-child(2){animation-delay:1.9s}
   .pilot-landing2 .pl-quote li:nth-child(3){animation-delay:2.05s} .pilot-landing2 .pl-quote li:nth-child(4){animation-delay:2.2s}
   .pilot-landing2 .pl-q-ask{animation-delay:2.4s} .pilot-landing2 .pl-q-total{animation-delay:2.55s}
   .pilot-landing2 figcaption { opacity:0; animation:pl-in .3s ease-out 2.6s forwards; }
-  @keyframes pl-show { 0%,90%{opacity:1} 100%{opacity:0} }
-  @keyframes pl-hit { 0%{transform:rotate(40deg)} 22%{transform:rotate(40deg)} 32%{transform:rotate(-2deg)} 38%{transform:rotate(0)} 55%{transform:rotate(40deg)} 70%{transform:rotate(-2deg)} 76%{transform:rotate(0)} 100%{transform:rotate(25deg)} }
-  @keyframes pl-spk { 0%,31%{opacity:0;transform:none} 33%{opacity:1;transform:none} 58%{opacity:0;transform:translate(var(--x),var(--y)) scale(.5)} 59%,69%{opacity:0;transform:none} 71%{opacity:1;transform:none} 97%{opacity:0;transform:translate(var(--x),var(--y)) scale(.5)} 100%{opacity:0} }
-  @keyframes pl-flash { 0%,31%{opacity:0;transform:scale(.4)} 33%{opacity:.5;transform:scale(1.2)} 44%{opacity:0;transform:scale(1.8)} 69%{opacity:0;transform:scale(.4)} 71%{opacity:.5;transform:scale(1.2)} 82%,100%{opacity:0;transform:scale(1.8)} }
-  @keyframes pl-thump { 0%,31%{transform:rotate(-1.6deg)} 34%{transform:rotate(-1.6deg) translateY(3px)} 40%{transform:rotate(-1.6deg)} 72%{transform:rotate(-1.6deg) translateY(3px)} 78%,100%{transform:rotate(-1.6deg)} }
+  @keyframes pl-show { 0%,92%{opacity:1} 100%{opacity:0} }
+  /* Levanta um pouco mais (antecipação), desce a acelerar, ressalta e assenta. Duas vezes. */
+  @keyframes pl-hit {
+    0%   { transform:rotate(42deg); animation-timing-function:cubic-bezier(.3,0,.5,1); }
+    14%  { transform:rotate(56deg); animation-timing-function:cubic-bezier(.75,0,1,.55); }
+    30%  { transform:rotate(-2.5deg); animation-timing-function:ease-out; }
+    34%  { transform:rotate(6deg); animation-timing-function:ease-in-out; }
+    39%  { transform:rotate(0deg); animation-timing-function:cubic-bezier(.3,0,.5,1); }
+    52%  { transform:rotate(56deg); animation-timing-function:cubic-bezier(.75,0,1,.55); }
+    68%  { transform:rotate(-2.5deg); animation-timing-function:ease-out; }
+    72%  { transform:rotate(6deg); animation-timing-function:ease-in-out; }
+    77%  { transform:rotate(0deg); animation-timing-function:cubic-bezier(.4,0,.2,1); }
+    100% { transform:rotate(34deg); } }
+  @keyframes pl-shadow { 0%,14% { opacity:.15; transform:scale(1.6); } 30% { opacity:1; transform:scale(1); } 40% { opacity:.8; transform:scale(1.05); } 52% { opacity:.15; transform:scale(1.6); } 68% { opacity:1; transform:scale(1); } 78% { opacity:.8; } 100% { opacity:.2; transform:scale(1.5); } }
+  @keyframes pl-flash { 0%,29.5% { opacity:0; transform:scale(.4); } 31% { opacity:1; transform:scale(1.1); } 46% { opacity:0; transform:scale(1.9); } 67.5% { opacity:0; transform:scale(.4); } 69% { opacity:1; transform:scale(1.1); } 84%,100% { opacity:0; transform:scale(1.9); } }
+  @keyframes pl-xa { 0%,30% { transform:translateX(0); animation-timing-function:cubic-bezier(.15,.75,.4,1); } 62%,100% { transform:translateX(var(--dx)); } }
+  @keyframes pl-ya { 0%,29.9% { transform:translateY(0); opacity:0; } 30% { opacity:1; animation-timing-function:cubic-bezier(.2,.7,.4,1); } 41% { transform:translateY(var(--up)); opacity:1; animation-timing-function:cubic-bezier(.5,0,.9,.6); } 62% { transform:translateY(var(--down)); opacity:0; } 100% { opacity:0; } }
+  @keyframes pl-xb { 0%,68% { transform:translateX(0); animation-timing-function:cubic-bezier(.15,.75,.4,1); } 100% { transform:translateX(var(--dx)); } }
+  @keyframes pl-yb { 0%,67.9% { transform:translateY(0); opacity:0; } 68% { opacity:1; animation-timing-function:cubic-bezier(.2,.7,.4,1); } 79% { transform:translateY(var(--up)); opacity:1; animation-timing-function:cubic-bezier(.5,0,.9,.6); } 100% { transform:translateY(var(--down)); opacity:0; } }
+  @keyframes pl-thump { 0%,29.5% { transform:rotate(-1.6deg); } 31% { transform:rotate(-1.6deg) translateY(3.5px) scale(.996); } 35% { transform:rotate(-1.6deg) translateY(-1px); } 39%,67.5% { transform:rotate(-1.6deg); } 69% { transform:rotate(-1.6deg) translateY(3.5px) scale(.996); } 73% { transform:rotate(-1.6deg) translateY(-1px); } 77%,100% { transform:rotate(-1.6deg); } }
   @keyframes pl-in { to { opacity:1; transform:none; } }
 }
 
