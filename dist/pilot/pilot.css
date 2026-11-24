@@ -1132,3 +1132,34 @@
 /* Janelas: nunca têm scroll por dentro. Crescem para baixo e a página faz scroll normalmente. */
 .pilot-mode #modal[open]:not(.fq-dialog) { position:absolute; inset:auto 0 auto 0; margin:0 auto 24px; max-height:none; overflow:visible; }
 .pilot-mode #modal:has(.origin-view) { width:min(820px,calc(100vw - 32px)); }
+
+/* ---------- Martelo realista: preparação, pancada rápida, ressalto, clarão, peça a achatar e faíscas com gravidade ---------- */
+.pf-real { --pf-dur:1.25s; overflow:visible; }
+.pi-fast .pf-real { --pf-dur:.7s; }
+.pf-real .pf-hammer, .pf-real .pf-piece, .pf-real .pf-flash, .pf-real .pf-glow, .pf-real .pf-anvil-g, .pf-real .pf-sp, .pf-real .pf-sp circle { animation:none; }
+.pf-real .pf-flash { opacity:0; }
+.pf-real .pf-glow { opacity:.35; }
+.pf-real .pf-sp circle { fill:#ffe08a; opacity:0; filter:drop-shadow(0 0 1.5px #ffb347); }
+@media (prefers-reduced-motion: no-preference) {
+  .pilot-mode .pf-real .pf-hammer, .pilot-intro .pf-real .pf-hammer { transform-box:view-box; transform-origin:154px 43.5px; animation:pfr-strike var(--pf-dur) infinite; }
+  .pf-real .pf-piece { transform-box:fill-box; transform-origin:50% 100%; animation:pfr-piece var(--pf-dur) infinite; }
+  .pf-real .pf-flash { transform-box:fill-box; transform-origin:center; animation:pfr-flash var(--pf-dur) infinite; }
+  .pf-real .pf-glow { animation:pfr-glow var(--pf-dur) infinite; }
+  .pf-real .pf-anvil-g { animation:pfr-shake var(--pf-dur) infinite; }
+  .pf-real .pf-sp { animation:pfr-x var(--pf-dur) linear infinite; animation-delay:var(--d); }
+  .pf-real .pf-sp circle { animation:pfr-y var(--pf-dur) infinite, pfr-col var(--pf-dur) infinite; animation-delay:var(--d),var(--d); }
+  @keyframes pfr-strike {
+    0%   { transform:rotate(20deg); animation-timing-function:cubic-bezier(.3,0,.5,1); }
+    40%  { transform:rotate(27deg); animation-timing-function:cubic-bezier(.75,0,1,.6); }
+    57%  { transform:rotate(-2.5deg); animation-timing-function:ease-out; }
+    62%  { transform:rotate(4deg); animation-timing-function:ease-in-out; }
+    68%  { transform:rotate(0deg); animation-timing-function:cubic-bezier(.4,0,.2,1); }
+    100% { transform:rotate(20deg); } }
+  @keyframes pfr-piece { 0%,55% { transform:scale(1,1); filter:brightness(1); } 58% { transform:scale(1.08,.78); filter:brightness(1.6); } 66% { transform:scale(1.04,.9); filter:brightness(1.25); } 100% { transform:scale(1,1); filter:brightness(1); } }
+  @keyframes pfr-flash { 0%,55% { opacity:0; transform:scale(.4); } 58% { opacity:1; transform:scale(1.1); } 72% { opacity:0; transform:scale(1.8); } 100% { opacity:0; } }
+  @keyframes pfr-glow { 0%,55% { opacity:.3; } 60% { opacity:.75; } 100% { opacity:.3; } }
+  @keyframes pfr-shake { 0%,56% { transform:translateY(0); } 58% { transform:translateY(1.3px); } 61% { transform:translateY(-.4px); } 64%,100% { transform:translateY(0); } }
+  @keyframes pfr-x { 0%,57% { transform:translateX(0); } 100% { transform:translateX(var(--dx)); } }
+  @keyframes pfr-y { 0%,57% { transform:translateY(0); opacity:0; animation-timing-function:cubic-bezier(.2,.7,.4,1); } 58% { opacity:1; } 72% { transform:translateY(var(--up)); animation-timing-function:cubic-bezier(.5,0,.9,.6); } 100% { transform:translateY(var(--down)); opacity:0; } }
+  @keyframes pfr-col { 0%,58% { fill:#fffbe6; } 80% { fill:#ffc85a; } 100% { fill:#ff7a2b; } }
+}
