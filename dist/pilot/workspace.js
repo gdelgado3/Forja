@@ -10,17 +10,17 @@ function renderPilotWorkspace() {
     const rated=state.projects.filter(p=>p.lines.length);
     if(pilotPage==='history'){
       const filtered=state.projects.filter(p=>(p.name+' '+p.client+' '+p.code).toLowerCase().includes(query.toLowerCase()));
-      return `${back}<div class="heading"><div><h1>Histórico</h1><p>${state.projects.length} orçamento(s) guardado(s) nesta oficina.</p></div></div>
+      return `${back}${pilotPlate('Histórico','Todos os orçamentos desta oficina, com as versões e a memória de cada obra.',[['Orçamentos',state.projects.length],['Com linhas',rated.length]])}
       ${state.projects.length?`<div class="toolbar"><input class="field search" id="project-search" placeholder="Procurar projeto ou cliente…" value="${esc(query)}" aria-label="Procurar orçamentos"></div>
       <div class="card table-scroll"><table class="project-list"><thead><tr><th>Projeto / Cliente</th><th>Estado</th><th>Valor sem IVA</th><th>Memória</th><th></th></tr></thead><tbody id="project-rows">${projectRows(filtered)}</tbody></table></div>`:'<div class="card card-pad"><p>Ainda não há orçamentos.</p></div>'}`;
     }
     if(pilotPage==='avaliar'){
-      return `${back}<div class="heading"><div><h1>Avaliar orçamentos</h1><p>Compara o rascunho da Forja com o preço que enviaste ao cliente. É assim que a Forja aprende os teus preços.</p></div></div>
+      return `${back}${pilotPlate('Avaliar orçamentos','Compara o rascunho da Forja com o preço que enviaste ao cliente. É assim que a Forja aprende os teus preços.',[['Avaliados',rated.filter(p=>p.priceCheck).length],['Por avaliar',rated.filter(p=>!p.priceCheck).length]])}
       ${rated.length?`<div class="pilot-rate-list">${rated.map(p=>`<button type="button" class="pilot-rate-row" data-pilot-rate="${p.id}"><span><strong>${esc(p.name)}</strong><small>${esc(p.client||'Sem cliente')}</small></span><span class="pilot-rate-val">${euro(calc(p).subtotal)}</span><span class="pilot-rate-state ${p.priceCheck?'done pilot-'+p.priceCheck:''}">${p.priceCheck==='ok'?'Certo':p.priceCheck==='under'?'Abaixo':p.priceCheck==='over'?'Acima':'Por avaliar'}</span></button>`).join('')}</div>`:'<div class="card card-pad"><p>Ainda não há orçamentos com linhas para avaliar.</p></div>'}`;
     }
     if(pilotPage==='feedback')return `${back}${pilotFeedbackHtml()}`;
     const recent=state.projects.slice(0,3);
-    return `<div class="heading"><div><h1>A tua oficina</h1><p>Do pedido do cliente ao orçamento. Escolhe por onde começar.</p></div></div>
+    return `${pilotPlate('A tua oficina','Do pedido do cliente ao orçamento. Escolhe por onde começar.',[['Custo por hora',String(state.settings.hour).replace('.',',')+' €'],['Acréscimo',String(state.settings.markup).replace('.',',')+' %'],['Artigos no catálogo',(state.settings.catalog||[]).length],['Orçamentos',state.projects.length]])}
     ${window.forjaPilot.demo&&!state.projects.some(p=>p.id==='exemplo')?`<button type="button" class="pilot-try-example" data-pilot-example><span class="pilot-try-badge">Começa aqui</span><strong>Simular com um pedido de exemplo</strong><small>Vê a Forja ler um pedido de prateleiras em inox e montar o orçamento, com as contas. Demora 10 segundos.</small><span class="pilot-try-arrow" aria-hidden="true">→</span></button>`:''}
     <div class="pilot-menu">
       <button type="button" class="pilot-menu-card pilot-menu-main" data-action="new">${icon('<path d="M12 5v14M5 12h14"/>')}<strong>Novo orçamento</strong><small>Cola o pedido ou junta o desenho e monta o rascunho.</small></button>
@@ -35,12 +35,17 @@ function renderPilotWorkspace() {
     '<div class="card card-pad"><p>Ainda não há orçamentos. Os que criares ficam guardados aqui, com as versões e a memória de cada obra.</p></div>'}
     ${window.forjaPilot.demo||state.projects.some(p=>p.id==='exemplo')?'':'<p class="pilot-example-link"><button type="button" class="small" data-pilot-example>Experimentar com um pedido de exemplo</button></p>'}</section>`;
   };
-  $('#app').innerHTML=`<div class="pilot-office"><header class="pilot-header no-print"><div class="pilot-brand"><span>f</span> Forja</div>
-    <strong>${esc(state.settings.company)}</strong><div class="pilot-header-actions">
-    ${isDetail?pilotPendingChip(project()):''}${isDetail||pilotPage!=='home'?'<button data-pilot-page="home">Página inicial</button>':''}
-    <button data-action="export">Exportar cópia</button><button data-pilot-action="logout">Sair</button></div></header>
-    <main class="pilot-content"><div class="pilot-sync no-print" id="pilot-save-status" role="status">${esc(window.forjaPilot.status())}</div>
-    ${!isDetail&&pilotPage==='home'?'<section id="pilot-responses" class="no-print"></section>':''}${isDetail&&tab==='orcamento'?pilotAiTop(project()):''}${isDetail?detail(project()):projectsHtml()}${isDetail&&tab==='pedido'?pilotAiPedido(project()):''}${isDetail?pilotPriceCheck(project()):''}</main></div>`;
+  const here=isDetail?'':pilotPage,nav=(k,label,attr,d)=>`<button type="button" ${attr} class="${here===k?'on':''}" ${here===k?'aria-current="page"':''}><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>${label}</button>`;
+  const cur=isDetail?project():null;
+  $('#app').innerHTML=`<div class="pilot-office pf-shell"><aside class="pf-side no-print" aria-label="Menu da oficina">
+    <div class="pf-side-brand"><span>f</span> Forja</div>
+    <div class="pf-side-shop"><small>Oficina</small><b>${esc(state.settings.company)}</b></div>
+    <nav class="pf-nav">${nav('home','Início','data-pilot-page="home"','<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>')}${nav('new','Novo orçamento','data-action="new"','<path d="M12 5v14M5 12h14"/>')}${nav('history','Histórico','data-pilot-page="history"','<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>')}${nav('catalog','Preços e catálogo','data-pilot-catalog','<path d="M4 6h16M4 12h16M4 18h10"/>')}${nav('avaliar','Avaliar orçamentos','data-pilot-page="avaliar"','<path d="M4 20h16"/><path d="M7 16l3-4 3 2 4-6"/>')}${nav('feedback','Dar feedback','data-pilot-page="feedback"','<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>')}</nav>
+    ${cur?`<div class="pf-side-open"><small>Aberto agora</small><b>${esc(cur.code)}</b><span>${esc(cur.name)}</span></div>`:''}
+    <div class="pf-side-foot"><p class="pilot-sync" id="pilot-save-status" role="status">${esc(window.forjaPilot.status())}</p><button type="button" data-action="export">Exportar cópia</button><button type="button" data-pilot-action="logout">Sair</button></div></aside>
+    <div class="pf-main">${isDetail?`<div class="pf-top no-print">${pilotPendingChip(project())}</div>`:''}
+    <main class="pilot-content">
+    ${!isDetail&&pilotPage==='home'?'<section id="pilot-responses" class="no-print"></section>':''}${isDetail&&tab==='orcamento'?pilotAiTop(project()):''}${isDetail?detail(project()):projectsHtml()}${isDetail&&tab==='pedido'?pilotAiPedido(project()):''}${isDetail?pilotPriceCheck(project()):''}</main></div></div>`;
   renderPilotResponses();
   // No separador Pedido, o botão Obter orçamento fica logo a seguir aos anexos (sem espaço vazio).
   const ai=document.querySelector('#pilot-ai'),files=document.querySelector('#anexos-card');
@@ -48,6 +53,20 @@ function renderPilotWorkspace() {
   document.querySelectorAll('textarea.desc').forEach(pilotFitDesc);
   pilotDraftRefresh();
   document.body.classList.toggle('pilot-reviewing',view==='detail'&&tab==='orcamento'&&pilotReview&&pilotAiStage(project())==='result');
+}
+// Cabeçalho tipo chapa de identificação da oficina: título, frase e os números que importam naquela página.
+function pilotPlate(title,sub,fields=[],kicker=''){
+  return `<header class="pf-plate">${kicker?`<small class="pf-plate-kicker">${kicker}</small>`:''}<div class="pf-plate-title"><h1>${esc(title)}</h1>${sub?`<p>${sub}</p>`:''}</div>${fields.length?`<dl class="pf-plate-fields">${fields.map(([k,v])=>`<div><dt>${esc(k)}</dt><dd>${typeof v==='number'?v:v}</dd></div>`).join('')}</dl>`:''}</header>`;
+}
+// Cabeçalho da obra aberta, no mesmo formato.
+// Carimbo "Revisto": aparece quando o orçamentista guarda uma versão (a revisão humana), e só bate com animação no momento em que é guardada.
+const pilotStampSeen={};
+function pilotDetailHead(p){
+  const v=[...p.versions].reverse().find(x=>x.label!=='Antes da alteração'),n=v?.number||0,fresh=pilotStampSeen[p.id]!==undefined&&n>pilotStampSeen[p.id];pilotStampSeen[p.id]=n;
+  const stamp=v?`<div class="pf-stamp${fresh?' new':''}" title="Versão ${v.number} guardada e revista pelo orçamentista"><b>Revisto</b><small>V${v.number} · ${new Date(v.created).toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})}</small></div>`:'';
+  return `<header class="pf-plate pf-plate-job"><small class="pf-plate-kicker">${esc(p.code)} · ${p.demo?'Orçamento de demonstração':'Orçamento'}</small><div class="pf-plate-title"><h1>${esc(p.name)}</h1>${stamp}</div>
+    <dl class="pf-plate-fields"><div><dt>Cliente</dt><dd>${esc(p.client||'Por indicar')}</dd></div><div><dt>Canal</dt><dd>${esc(p.channel||'—')}</dd></div><div><dt>Estado</dt><dd>${badge(p.status)}</dd></div><div><dt>Sem IVA</dt><dd>${euro(calc(p).subtotal)}</dd></div></dl>
+    <div class="heading-actions pf-plate-actions"><button data-action="new">+ Novo orçamento</button><button class="primary" data-action="revision">↗ Registar alteração</button></div></header>`;
 }
 // Rascunho antes de aplicar: o resumo mostra já o valor das linhas propostas (a tracejado), e muda à medida que se alteram quantidades e custos.
 function pilotDraftTotals(p){

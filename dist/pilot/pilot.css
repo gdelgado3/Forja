@@ -1193,3 +1193,83 @@
   @keyframes pfr-y { 0%,57% { transform:translateY(0); opacity:0; animation-timing-function:cubic-bezier(.2,.7,.4,1); } 58% { opacity:1; } 72% { transform:translateY(var(--up)); animation-timing-function:cubic-bezier(.5,0,.9,.6); } 100% { transform:translateY(var(--down)); opacity:0; } }
   @keyframes pfr-col { 0%,58% { fill:#fffbe6; } 80% { fill:#ffc85a; } 100% { fill:#ff7a2b; } }
 }
+
+/* ===== Moldura da oficina: menu fixo à esquerda, conteúdo à direita =====
+   A identidade vem da oficina: tinta verde-escura, chapas de identificação com rebites, marca verde-clara no separador ativo. */
+.pilot-office.pf-shell { width:100%; max-width:none; margin:0; padding:0; display:grid; grid-template-columns:240px minmax(0,1fr); min-height:100vh; }
+.pf-side { position:sticky; top:0; height:100vh; overflow-y:auto; background:#1b3a2e; color:#cfe0d4; padding:22px 16px 18px; display:flex; flex-direction:column; gap:20px; }
+.pf-side-brand { display:flex; align-items:center; gap:10px; font:800 1.45rem Manrope,'DM Sans',sans-serif; color:#fff; letter-spacing:-.02em; padding:0 6px; }
+.pf-side-brand span { display:grid; place-items:center; width:34px; height:34px; border-radius:8px; background:#d9f0c4; color:#1b3a2e; font-size:1.25rem; }
+.pf-side-shop { padding:0 6px; }
+.pf-side-shop small, .pf-side-open small { display:block; font-size:.72rem; color:#8fb09d; margin-bottom:2px; }
+.pf-side-shop b { color:#fff; font-size:.95rem; line-height:1.3; }
+.pf-nav { display:flex; flex-direction:column; border-top:1px solid #2f5242; }
+.pf-nav button { display:flex; align-items:center; gap:11px; width:100%; text-align:left; background:transparent; color:#cfe0d4; border:0; border-bottom:1px solid #2f5242; border-radius:0; padding:12px 8px; font-weight:600; font-size:.92rem; min-height:46px; transition:padding .15s ease, color .15s ease; }
+.pf-nav button svg { flex:none; opacity:.85; }
+.pf-nav button:hover { background:rgb(255 255 255 / 5%); color:#fff; }
+.pf-nav button.on { color:#fff; background:rgb(255 255 255 / 6%); box-shadow:inset 4px 0 0 #d9f0c4; padding-left:16px; }
+.pf-nav button:focus-visible { outline:2px solid #d9f0c4; outline-offset:-2px; }
+.pf-side-open { margin:0 2px; padding:12px; border:1px dashed #4a6e5d; border-radius:8px; }
+.pf-side-open b { display:block; color:#d9f0c4; font-size:.85rem; }
+.pf-side-open span { display:block; color:#fff; font-size:.9rem; line-height:1.3; margin-top:2px; }
+.pf-side-foot { margin-top:auto; display:grid; gap:8px; border-top:1px solid #2f5242; padding-top:14px; }
+.pf-side-foot .pilot-sync { color:#8fb09d; margin:0 4px 4px; font-size:.8rem; min-height:0; }
+.pf-side-foot button { background:transparent; color:#cfe0d4; border:1px solid #3f6352; min-height:38px; font-size:.85rem; }
+.pf-side-foot button:hover { color:#fff; border-color:#d9f0c4; background:transparent; }
+.pf-main { min-width:0; padding:22px 32px 48px; }
+.pf-main > .pilot-content { max-width:1180px; margin:0 auto; }
+.pf-top { max-width:1180px; margin:0 auto 6px; display:flex; justify-content:flex-end; min-height:8px; }
+.pf-shell .pilot-back, .pf-shell .back-button { display:none; }
+
+/* Chapa de identificação: o cabeçalho de cada página */
+.pf-plate { position:relative; display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:stretch; background:#fff; border:2px solid #1b3a2e; border-radius:6px; margin:4px 0 22px; }
+.pf-plate::before, .pf-plate::after { content:''; position:absolute; top:7px; width:6px; height:6px; border-radius:50%; background:radial-gradient(circle at 35% 35%, #c9d3cd, #6f7f78); }
+.pf-plate::before { left:7px; } .pf-plate::after { right:7px; }
+.pf-plate-kicker { grid-column:1; padding:12px 22px 0; font-size:.78rem; font-weight:600; color:#5d6b64; }
+.pf-plate-title { padding:14px 22px 16px; display:flex; flex-direction:column; justify-content:center; gap:4px; }
+.pf-plate-kicker + .pf-plate-title { padding-top:4px; }
+.pf-plate-title h1 { margin:0; font:800 1.75rem/1.1 Manrope,'DM Sans',sans-serif; letter-spacing:-.02em; color:#1b3a2e; }
+.pf-plate-title p { margin:0; color:#5d6b64; font-size:.95rem; max-width:62ch; }
+.pf-plate-fields { display:grid; grid-template-columns:repeat(2,minmax(120px,180px)); margin:0; border-left:2px solid #1b3a2e; }
+.pf-plate-kicker ~ .pf-plate-fields { grid-row:1 / span 2; grid-column:2; }
+.pf-plate-fields > div { padding:8px 14px; border-bottom:1px solid #1b3a2e; border-left:1px solid #d6ddd8; display:flex; flex-direction:column; justify-content:center; min-height:48px; }
+.pf-plate-fields > div:nth-child(odd) { border-left:0; }
+.pf-plate-fields > div:nth-last-child(-n+2):nth-child(odd), .pf-plate-fields > div:last-child { border-bottom:0; }
+.pf-plate-fields dt { font-size:.72rem; color:#5d6b64; }
+.pf-plate-fields dd { margin:0; font-weight:700; font-size:1rem; color:#1d2b25; }
+.pf-plate-job .pf-plate-actions { grid-column:1; padding:0 22px 16px; display:flex; gap:8px; flex-wrap:wrap; }
+.pf-plate-job { grid-template-rows:auto auto auto; }
+.pf-plate-job .pf-plate-fields { grid-row:1 / span 3; }
+
+@media (max-width: 1100px) { .pf-plate-fields { grid-template-columns:repeat(2,minmax(110px,150px)); } }
+@media (max-width: 900px) {
+  .pilot-office.pf-shell { display:block; }
+  .pf-side { position:static; height:auto; overflow:visible; flex-direction:row; flex-wrap:wrap; align-items:center; gap:8px 14px; padding:10px 12px; }
+  .pf-side-brand { font-size:1.15rem; padding:0; } .pf-side-brand span { width:28px; height:28px; font-size:1rem; }
+  .pf-side-shop { flex:1; min-width:0; } .pf-side-shop small { display:none; } .pf-side-shop b { font-size:.85rem; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pf-side-open { display:none; }
+  .pf-side-foot { margin:0; border:0; padding:0; display:flex; gap:6px; } .pf-side-foot .pilot-sync, .pf-side-foot [data-action=export] { display:none; }
+  .pf-side-foot button { min-height:32px; padding:4px 10px; }
+  .pf-nav { order:5; flex-basis:100%; flex-direction:row; overflow-x:auto; border:0; gap:4px; scrollbar-width:none; }
+  .pf-nav button { width:auto; white-space:nowrap; border:1px solid #2f5242; border-radius:999px; padding:6px 12px; min-height:36px; font-size:.85rem; }
+  .pf-nav button.on { box-shadow:none; background:#d9f0c4; color:#1b3a2e; padding-left:12px; }
+  .pf-nav button svg { display:none; }
+  .pf-main { padding:16px 14px 32px; }
+  .pf-shell .pilot-back, .pf-shell .back-button { display:none; }
+  .pf-plate { grid-template-columns:1fr; }
+  .pf-plate-fields, .pf-plate-kicker ~ .pf-plate-fields, .pf-plate-job .pf-plate-fields { grid-row:auto; grid-column:1; border-left:0; border-top:2px solid #1b3a2e; grid-template-columns:1fr 1fr; }
+  .pf-plate-title h1 { font-size:1.4rem; }
+  .pf-plate-job .pf-plate-actions { grid-row:auto; padding:12px 16px 14px; }
+  .pf-plate-title, .pf-plate-kicker { padding-left:16px; padding-right:16px; }
+}
+@media print { .pf-side, .pf-top { display:none !important; } .pilot-office.pf-shell { display:block; } .pf-main { padding:0; } }
+@media (prefers-reduced-motion: reduce) { .pf-nav button { transition:none; } }
+/* Carimbo "Revisto" na chapa do orçamento */
+.pf-plate-title { position:relative; }
+.pf-stamp { position:absolute; right:18px; top:50%; transform:translateY(-50%) rotate(-7deg); border:2.5px solid #2e6b4a; color:#2e6b4a; background:rgb(217 240 196 / 45%); border-radius:5px; padding:4px 10px 3px; text-align:center; font:800 .95rem/1 Manrope,'DM Sans',sans-serif; letter-spacing:.08em; text-transform:uppercase; pointer-events:none; }
+.pf-stamp small { display:block; font:600 .68rem/1.3 'DM Sans',sans-serif; letter-spacing:0; text-transform:none; margin-top:2px; }
+.pf-stamp.new { animation:pf-carimbar .34s cubic-bezier(.2,1.4,.4,1) both; }
+@keyframes pf-carimbar { from { opacity:0; transform:translateY(-50%) rotate(-7deg) scale(1.7); } to { opacity:1; transform:translateY(-50%) rotate(-7deg) scale(1); } }
+@media (prefers-reduced-motion: reduce) { .pf-stamp.new { animation:none; } }
+@media (max-width: 900px) { .pf-plate-title:has(.pf-stamp) { padding-bottom:58px; } .pf-stamp { top:auto; bottom:12px; right:auto; left:16px; transform:rotate(-5deg); } .pf-stamp.new { animation:none; } .pf-plate-job .pf-plate-title h1 { padding-right:0; } }
+@media (min-width: 901px) { .pf-plate-job .pf-plate-title h1 { padding-right:130px; } }
