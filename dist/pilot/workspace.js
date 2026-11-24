@@ -946,7 +946,8 @@ document.addEventListener('click',e=>{const d=document.querySelector('details.pi
 function pilotTemplate(){
   const t=state.settings.template||{};
   return {company:t.company||state.settings.company||'',nif:t.nif||'',address:t.address||'',contacts:t.contacts||'',logo:t.logo||'',color:t.color||'#214236',layout:t.layout||'classico',
-    validity:t.validity??30,payment:t.payment??'50 % na adjudicação e 50 % na entrega.',delivery:t.delivery??'A combinar após adjudicação.',notes:t.notes||'',footer:t.footer||'',showSource:!!t.showSource,showUnit:t.showUnit!==false};
+    validity:t.validity??30,payment:t.payment??'50 % na adjudicação e 50 % na entrega.',delivery:t.delivery??'A combinar após adjudicação.',notes:t.notes||'',footer:t.footer||'',showSource:!!t.showSource,showUnit:t.showUnit!==false,
+    paper:t.paper||'',paperTop:t.paperTop??45,paperBottom:t.paperBottom??30,paperSide:t.paperSide??18,paperCover:t.paperCover!==false};
 }
 // Preços de venda por linha: o acréscimo reparte-se pelas linhas e o último cêntimo acerta no total, para bater com o resumo da Forja.
 function pilotSaleLines(p){
@@ -959,16 +960,22 @@ function pilotQuoteDoc(p,tpl){
   const {lines,t}=pilotSaleLines(p),d=new Date(),until=new Date(d.getTime()+tpl.validity*864e5),f=x=>x.toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric'});
   const num=v=>Number(v).toLocaleString('pt-PT',{maximumFractionDigits:3});
   const nl=s=>esc(s).replace(/\n/g,'<br>');
-  return `<article class="fq-doc fq-${tpl.layout}" style="--fq:${esc(tpl.color)}">
-    <header class="fq-head"><div class="fq-brand">${tpl.logo?`<img src="${tpl.logo}" alt="">`:''}<div><strong>${esc(tpl.company||'Nome da oficina')}</strong>${tpl.nif?`<span>NIF ${esc(tpl.nif)}</span>`:''}${tpl.address?`<span>${nl(tpl.address)}</span>`:''}${tpl.contacts?`<span>${nl(tpl.contacts)}</span>`:''}</div></div>
-      <div class="fq-id"><h1>Orçamento</h1><dl><dt>N.º</dt><dd>${esc(p.code)}</dd><dt>Data</dt><dd>${f(d)}</dd>${tpl.validity?`<dt>Válido até</dt><dd>${f(until)}</dd>`:''}</dl></div></header>
+  const paper=!!tpl.paper,id=`<dl><dt>N.º</dt><dd>${esc(p.code)}</dd><dt>Data</dt><dd>${f(d)}</dd>${tpl.validity?`<dt>Válido até</dt><dd>${f(until)}</dd>`:''}</dl>`;
+  const head=paper?`<header class="fq-phead"><h1>Orçamento</h1>${id}</header>`:`<header class="fq-head"><div class="fq-brand">${tpl.logo?`<img src="${tpl.logo}" alt="">`:''}<div><strong>${esc(tpl.company||'Nome da oficina')}</strong>${tpl.nif?`<span>NIF ${esc(tpl.nif)}</span>`:''}${tpl.address?`<span>${nl(tpl.address)}</span>`:''}${tpl.contacts?`<span>${nl(tpl.contacts)}</span>`:''}</div></div>
+      <div class="fq-id"><h1>Orçamento</h1>${id}</div></header>`;
+  const body=`
     <section class="fq-client"><div><small>Cliente</small><strong>${esc(p.client||'—')}</strong></div><div><small>Obra / trabalho</small><strong>${esc(p.name)}</strong></div></section>
     <table class="fq-table"><thead><tr><th>Descrição</th><th class="r">Qtd.</th>${tpl.showUnit?'<th>Un.</th><th class="r">Preço un.</th>':''}<th class="r">Total</th></tr></thead><tbody>
       ${lines.map(l=>`<tr><td>${esc(l.desc)}${tpl.showSource&&l.source?`<small>${esc(l.source)}</small>`:''}</td><td class="r">${num(l.qty)}</td>${tpl.showUnit?`<td>${esc(l.unit)}</td><td class="r">${euro(l.unitPrice)}</td>`:''}<td class="r">${euro(l.total)}</td></tr>`).join('')||'<tr><td colspan="5">Sem linhas no orçamento.</td></tr>'}
     </tbody></table>
     <section class="fq-totals"><div><span>Total sem IVA</span><span>${euro(t.subtotal)}</span></div><div><span>IVA (${p.vat} %)</span><span>${euro(t.tax)}</span></div><div class="fq-grand"><span>Total com IVA</span><span>${euro(t.total)}</span></div></section>
     <section class="fq-terms">${tpl.validity?`<p><b>Validade:</b> ${tpl.validity} dias.</p>`:''}${tpl.payment?`<p><b>Pagamento:</b> ${nl(tpl.payment)}</p>`:''}${tpl.delivery?`<p><b>Prazo:</b> ${nl(tpl.delivery)}</p>`:''}${tpl.notes?`<p>${nl(tpl.notes)}</p>`:''}</section>
-    <footer class="fq-foot">${tpl.footer?nl(tpl.footer):esc(tpl.company||'')}</footer></article>`;
+    ${paper?'':`<footer class="fq-foot">${tpl.footer?nl(tpl.footer):esc(tpl.company||'')}</footer>`}`;
+  if(!paper)return `<article class="fq-doc fq-${tpl.layout}" style="--fq:${esc(tpl.color)}">${head}${body}</article>`;
+  // Papel da oficina: a imagem é o fundo de cada página; as linhas em branco do thead/tfoot repetem-se e guardam o cabeçalho e o rodapé do papel.
+  return `<article class="fq-doc fq-paper fq-${tpl.layout}" style="--fq:${esc(tpl.color)};--pt:${Number(tpl.paperTop)||0}mm;--pb:${Number(tpl.paperBottom)||0}mm;--ps:${Number(tpl.paperSide)||0}mm">
+    <img class="fq-bg" src="${tpl.paper}" alt="">${tpl.paperCover?'<div class="fq-cover"></div>':''}
+    <table class="fq-pages"><thead><tr><td><div class="fq-sp-top"></div></td></tr></thead><tfoot><tr><td><div class="fq-sp-bot"></div></td></tr></tfoot><tbody><tr><td>${head}${body}</td></tr></tbody></table></article>`;
 }
 const PILOT_DOC_CSS=`.fq-doc{--fq:#214236;width:794px;min-height:1123px;padding:56px 60px;background:#fff;color:#1d2b25;font:13px/1.5 'DM Sans',Arial,sans-serif;box-sizing:border-box;display:flex;flex-direction:column}
 .fq-head{display:flex;justify-content:space-between;gap:24px;padding-bottom:22px;border-bottom:3px solid var(--fq)}
@@ -980,6 +987,11 @@ const PILOT_DOC_CSS=`.fq-doc{--fq:#214236;width:794px;min-height:1123px;padding:
 .fq-terms{margin-top:28px;font-size:12px;color:#33433c}.fq-terms p{margin:0 0 6px}
 .fq-foot{margin-top:auto;padding-top:18px;border-top:1px solid #e3e8e3;color:#6a7872;font-size:11px;text-align:center}
 .fq-moderno .fq-head{border:0;background:var(--fq);color:#fff;margin:-56px -60px 0;padding:36px 60px 26px}.fq-moderno .fq-brand span,.fq-moderno .fq-id dt{color:rgb(255 255 255 / 75%)}.fq-moderno .fq-id h1{color:#fff}.fq-moderno .fq-table th{background:#eef1ee;color:#1d2b25}
+.fq-paper{position:relative;padding:0 var(--ps);display:block}.fq-paper .fq-bg{position:absolute;top:0;left:0;width:794px;height:1123px;object-fit:fill;z-index:0}
+.fq-paper .fq-cover{position:absolute;z-index:1;top:var(--pt);bottom:var(--pb);left:calc(var(--ps) - 3mm);right:calc(var(--ps) - 3mm);max-height:calc(1123px - var(--pt) - var(--pb));background:#fff}
+.fq-pages{position:relative;z-index:2;width:100%;border-collapse:collapse}.fq-pages>thead>tr>td,.fq-pages>tfoot>tr>td,.fq-pages>tbody>tr>td{padding:0}.fq-sp-top{height:var(--pt)}.fq-sp-bot{height:var(--pb)}
+.fq-phead{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;padding:6px 0 10px;border-bottom:2px solid var(--fq)}.fq-phead h1{margin:0;font:800 22px Manrope,Arial,sans-serif;color:var(--fq)}.fq-phead dl{display:flex;flex-wrap:wrap;gap:2px 8px;margin:0;font-size:12px}.fq-phead dt{color:#6a7872}.fq-phead dd{margin:0 8px 0 0;font-weight:600}
+.fq-paper .fq-client{margin:14px 0}
 .fq-compacto{font-size:11.5px;padding:40px 44px}.fq-compacto .fq-head{border-bottom-width:1px}.fq-compacto .fq-id h1{font-size:20px}.fq-compacto .fq-table td{padding:5px 8px}.fq-compacto .fq-table th{padding:6px 8px}`;
 function pilotExportOpen(){
   const p=project();let tpl=pilotTemplate();
@@ -987,6 +999,13 @@ function pilotExportOpen(){
   const area=(k,l,r=2)=>`<label>${l}<textarea class="field" data-tpl="${k}" rows="${r}">${esc(tpl[k]||'')}</textarea></label>`;
   modal(`${modalHead('Exportar orçamento')}<div class="fq-wrap"><form class="fq-form" id="fq-form" onsubmit="return false">
     <p class="smalltext">O documento que o cliente recebe, com o modelo da tua oficina. Fica guardado para os próximos orçamentos.</p>
+    <fieldset class="fq-paperset"><legend>O papel da tua oficina</legend>
+      <p class="smalltext">Já tens um orçamento ou papel timbrado? Carrega-o (imagem ou PDF). A Forja usa-o como fundo e escreve os dados no espaço do meio.</p>
+      <label class="fq-file"><input type="file" accept="image/png,image/jpeg,image/webp,application/pdf" data-fq-paper><span>${tpl.paper?'Trocar o papel':'Carregar papel ou orçamento antigo'}</span></label>
+      <div class="fq-paperopts" ${tpl.paper?'':'hidden'}>
+        <div class="fq-margins">${field('paperTop','Espaço do cabeçalho (mm)','number','min="0" max="120"')}${field('paperBottom','Espaço do rodapé (mm)','number','min="0" max="120"')}${field('paperSide','Margens dos lados (mm)','number','min="0" max="60"')}</div>
+        <label class="fq-check"><input type="checkbox" data-tpl="paperCover" ${tpl.paperCover?'checked':''}> Tapar o texto antigo do meio da página</label>
+        <button type="button" class="small ghost" data-fq-nopaper>Voltar ao modelo da Forja</button></div></fieldset>
     <fieldset><legend>Modelo</legend><div class="fq-layouts">${[['classico','Clássico'],['moderno','Moderno'],['compacto','Compacto']].map(([k,l])=>`<label class="fq-chip"><input type="radio" name="fq-layout" data-tpl="layout" value="${k}" ${tpl.layout===k?'checked':''}> ${l}</label>`).join('')}</div>
       <div class="fq-colors">${['#214236','#1f3a5f','#7a2e2e','#3d3d3d','#8a5a12'].map(c=>`<button type="button" class="fq-color${tpl.color===c?' on':''}" data-fq-color="${c}" style="background:${c}" aria-label="Cor ${c}"></button>`).join('')}<input type="color" data-tpl="color" value="${esc(tpl.color)}" aria-label="Outra cor"></div></fieldset>
     <fieldset><legend>Oficina</legend>${field('company','Nome')}${field('nif','NIF')}${area('address','Morada')}${area('contacts','Telefone e email')}
@@ -996,13 +1015,14 @@ function pilotExportOpen(){
     <p class="fq-status smalltext" id="fq-status" role="status"></p>
     <div class="fq-actions"><button type="button" data-fq-save>Guardar modelo</button><button type="button" class="primary" data-fq-print>Imprimir / Guardar PDF</button></div>
   </form><div class="fq-preview" aria-label="Pré-visualização"><div class="fq-scale" id="fq-scale"></div></div></div>`);
-  const dlg=document.querySelector('#modal');dlg.classList.add('fq-dialog');dlg.addEventListener('close',()=>dlg.classList.remove('fq-dialog'),{once:true});
+  const dlg=document.querySelector('#modal');dlg.classList.add('fq-dialog');dlg.style.top='';dlg.addEventListener('close',()=>dlg.classList.remove('fq-dialog'),{once:true});
   const draw=()=>{const box=document.querySelector('#fq-scale');if(!box)return;box.innerHTML=`<style>${PILOT_DOC_CSS}</style>`+pilotQuoteDoc(p,tpl);};
-  const read=()=>{document.querySelectorAll('#fq-form [data-tpl]').forEach(el=>{const k=el.dataset.tpl;if(el.type==='radio'){if(el.checked)tpl[k]=el.value;}else if(el.type==='checkbox')tpl[k]=el.checked;else if(k==='validity')tpl[k]=Math.max(0,Math.min(365,Math.round(Number(el.value)||0)));else tpl[k]=el.value;});};
+  const read=()=>{document.querySelectorAll('#fq-form [data-tpl]').forEach(el=>{const k=el.dataset.tpl;if(el.type==='radio'){if(el.checked)tpl[k]=el.value;}else if(el.type==='checkbox')tpl[k]=el.checked;else if(k==='validity')tpl[k]=Math.max(0,Math.min(365,Math.round(Number(el.value)||0)));else if(/^paper(Top|Bottom|Side)$/.test(k))tpl[k]=Math.max(0,Math.min(120,Math.round(Number(el.value)||0)));else tpl[k]=el.value;});};
   const form=document.querySelector('#fq-form');
   form.addEventListener('input',()=>{read();draw();});form.addEventListener('change',()=>{read();draw();});
   form.addEventListener('click',async e=>{
     const c=e.target.closest('[data-fq-color]');if(c){tpl.color=c.dataset.fqColor;form.querySelector('input[type=color]').value=tpl.color;form.querySelectorAll('.fq-color').forEach(b=>b.classList.toggle('on',b===c));draw();return;}
+    if(e.target.closest('[data-fq-nopaper]')){tpl.paper='';form.querySelector('.fq-paperopts').hidden=true;form.querySelector('.fq-file span').textContent='Carregar papel ou orçamento antigo';draw();return;}
     if(e.target.closest('[data-fq-nologo]')){tpl.logo='';e.target.remove();draw();return;}
     const st=document.querySelector('#fq-status');
     if(e.target.closest('[data-fq-save]')){try{state.settings.template=await window.forjaPilot.saveTemplate(tpl);tpl={...pilotTemplate()};st.textContent='Modelo guardado.';}catch(err){st.textContent=err.message||'Não foi possível guardar o modelo.';}return;}
@@ -1010,11 +1030,34 @@ function pilotExportOpen(){
   });
   form.querySelector('[data-fq-logo]').addEventListener('change',e=>{const f=e.target.files[0],st=document.querySelector('#fq-status');if(!f)return;if(f.size>300*1024){st.textContent='O logótipo tem mais de 300 KB. Usa uma imagem mais pequena.';e.target.value='';return;}
     const r=new FileReader();r.onload=()=>{tpl.logo=String(r.result);draw();st.textContent='Logótipo carregado. Carrega em Guardar modelo para o manter.';};r.readAsDataURL(f);});
+  form.querySelector('[data-fq-paper]').addEventListener('change',async e=>{const f=e.target.files[0],st=document.querySelector('#fq-status');if(!f)return;
+    st.textContent='A preparar o papel…';
+    try{tpl.paper=await pilotPaperImage(f);form.querySelector('.fq-paperopts').hidden=false;form.querySelector('.fq-file span').textContent='Trocar o papel';draw();st.textContent='Papel carregado. Acerta os espaços do cabeçalho e do rodapé e carrega em Guardar modelo.';}
+    catch(err){st.textContent=err.message||'Não foi possível ler esse ficheiro. Usa um PDF ou uma imagem PNG ou JPG.';}
+    e.target.value='';});
   draw();
+}
+// Converte o papel da oficina (imagem ou 1.ª página de um PDF) numa imagem A4 leve, para guardar no modelo.
+async function pilotPaperImage(file){
+  if(file.size>15*1024*1024)throw new Error('O ficheiro tem mais de 15 MB. Usa uma versão mais pequena.');
+  let src;
+  if(file.type==='application/pdf'||/\.pdf$/i.test(file.name)){
+    const pdfjs=await import('/vendor/pdf/pdf.min.mjs');pdfjs.GlobalWorkerOptions.workerSrc='/vendor/pdf/pdf.worker.min.mjs';
+    const task=pdfjs.getDocument({data:new Uint8Array(await file.arrayBuffer()),isEvalSupported:false,standardFontDataUrl:'/vendor/pdf/standard_fonts/',wasmUrl:'/vendor/pdf/wasm/'}),pdf=await task.promise;
+    const page=await pdf.getPage(1),base=page.getViewport({scale:1}),vp=page.getViewport({scale:1754/base.height});
+    src=document.createElement('canvas');src.width=Math.ceil(vp.width);src.height=Math.ceil(vp.height);
+    await page.render({canvasContext:src.getContext('2d'),viewport:vp}).promise;page.cleanup();task.destroy?.();
+  }else if(/^image\/(png|jpeg|webp)$/.test(file.type)){
+    src=await new Promise((ok,bad)=>{const img=new Image(),u=URL.createObjectURL(file);img.onload=()=>{URL.revokeObjectURL(u);ok(img);};img.onerror=()=>{URL.revokeObjectURL(u);bad(new Error('Não foi possível abrir a imagem.'));};img.src=u;});
+  }else throw new Error('Usa um PDF ou uma imagem PNG ou JPG.');
+  const c=document.createElement('canvas');c.width=1240;c.height=1754;const g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);
+  const w=src.width,h=src.height,k=Math.min(c.width/w,c.height/h);g.drawImage(src,(c.width-w*k)/2,(c.height-h*k)/2,w*k,h*k);
+  for(const q of [.82,.7,.58,.45]){const url=c.toDataURL('image/jpeg',q);if(url.length<=950000)return url;}
+  throw new Error('O papel tem demasiado detalhe para guardar. Experimenta uma versão mais simples.');
 }
 function pilotPrintDoc(p,tpl){
   const fr=document.createElement('iframe');fr.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';document.body.appendChild(fr);
-  const doc=fr.contentDocument;doc.open();doc.write(`<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><title>Orçamento ${esc(p.code)} · ${esc(p.name)}</title><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&family=Manrope:wght@800&display=swap" rel="stylesheet"><style>@page{size:A4;margin:0}html,body{margin:0}${PILOT_DOC_CSS}.fq-doc{width:210mm;min-height:297mm}</style></head><body>${pilotQuoteDoc(p,tpl)}</body></html>`);doc.close();
+  const doc=fr.contentDocument;doc.open();doc.write(`<!doctype html><html lang="pt-PT"><head><meta charset="utf-8"><title>Orçamento ${esc(p.code)} · ${esc(p.name)}</title><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&family=Manrope:wght@800&display=swap" rel="stylesheet"><style>@page{size:A4;margin:0}html,body{margin:0}${PILOT_DOC_CSS}.fq-doc{width:210mm;min-height:297mm}.fq-paper{min-height:0}.fq-paper .fq-bg{position:fixed;width:210mm;height:297mm}.fq-paper .fq-cover{position:fixed;max-height:none}.fq-paper tr{break-inside:avoid}</style></head><body>${pilotQuoteDoc(p,tpl)}</body></html>`);doc.close();
   const go=()=>{try{fr.contentWindow.focus();fr.contentWindow.print();}finally{setTimeout(()=>fr.remove(),1500);}};
   (doc.fonts?.ready||Promise.resolve()).then(()=>setTimeout(go,150));
 }

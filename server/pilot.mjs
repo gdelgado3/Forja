@@ -60,10 +60,14 @@ export function quoteTemplate(t = {}) {
   const logo = typeof t.logo === 'string' && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(t.logo) && t.logo.length <= 400_000 ? t.logo : '';
   const color = typeof t.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(t.color) ? t.color.toLowerCase() : '#214236';
   const layout = ['classico', 'moderno', 'compacto'].includes(t.layout) ? t.layout : 'classico';
+  // Papel da própria oficina (papel timbrado ou um orçamento antigo), já reduzido no navegador a uma imagem A4.
+  const paper = typeof t.paper === 'string' && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(t.paper) && t.paper.length <= 1_000_000 ? t.paper : '';
+  const mm = (v, d) => Math.min(120, Math.max(0, Math.round(Number(v ?? d)) || 0));
   const days = Math.min(365, Math.max(0, Math.round(Number(t.validity) || 30)));
   return { company: txt(t.company, 120), nif: txt(t.nif, 30), address: txt(t.address, 300), contacts: txt(t.contacts, 200), logo, color, layout, validity: days,
     payment: txt(t.payment, 600), delivery: txt(t.delivery, 300), notes: txt(t.notes, 1500), footer: txt(t.footer, 300),
-    showSource: t.showSource === true, showUnit: t.showUnit !== false, updated: new Date().toISOString() };
+    showSource: t.showSource === true, showUnit: t.showUnit !== false,
+    paper, paperTop: mm(t.paperTop, 45), paperBottom: mm(t.paperBottom, 30), paperSide: mm(t.paperSide, 18), paperCover: t.paperCover !== false, updated: new Date().toISOString() };
 }
 
 async function jsonBody(req, limit = 128 * 1024) {
@@ -534,7 +538,7 @@ export async function createPilotServer({root=resolve(dirname(fileURLToPath(impo
       }
       if(path==='/api/pilot/template' && req.method==='PUT') {
         // Modelo do orçamento da oficina (cabeçalho, logótipo, cor, condições). Só texto curto e uma imagem pequena.
-        const input=await jsonBody(req,420*1024);
+        const input=await jsonBody(req,1500*1024);
         const office=workshopLookup.get(auth.workshop),state=JSON.parse(office.state);
         state.settings={...state.settings,template:quoteTemplate(input)};
         db.prepare('UPDATE workshops SET state=?,last_use=? WHERE id=?').run(JSON.stringify(state),time(),office.id);
