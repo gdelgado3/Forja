@@ -4,6 +4,7 @@
 import { redactText } from '../dist/pilot/privacy.mjs';
 
 export const MODEL = process.env.FORJA_AI_MODEL || 'claude-sonnet-5-5';
+export const EFFORT = ['low', 'medium', 'high'].includes(process.env.FORJA_AI_EFFORT) ? process.env.FORJA_AI_EFFORT : 'medium';
 const MAX_FILES = 10;
 const MAX_TOTAL = 18 * 1024 * 1024;
 const MAX_IMAGE = 5 * 1024 * 1024;
@@ -278,9 +279,9 @@ export async function callClaude(messages, { apiKey, model = MODEL, fetchImpl = 
   if (!apiKey) throw fail('A leitura de pedidos ainda não está ligada neste servidor.', 503);
   const signal = AbortSignal.timeout(LIMIT_MS);
   const useThinking = thinking && !thinkingOff;
-  const body = { model: resolvedModel || model, max_tokens: useThinking ? 48000 : 32000, system: SYSTEM, messages, tools: [TOOL], tool_choice: { type: 'auto' },
-    // Raciocínio adaptativo com esforço alto: a análise mais completa que o modelo faz.
-    ...(useThinking ? { thinking: { type: 'adaptive' }, output_config: { effort: 'high' } } : {}) };
+  const body = { model: resolvedModel || model, max_tokens: useThinking ? 48000 : 32000, system: [{ type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } }], messages, tools: [TOOL], tool_choice: { type: 'auto' },
+    // Raciocínio adaptativo; o esforço (low/medium/high) controla o custo. Por omissão "medium"; FORJA_AI_EFFORT muda-o.
+    ...(useThinking ? { thinking: { type: 'adaptive' }, output_config: { effort: EFFORT } } : {}) };
   let response, data;
   onProgress?.('A enviar o pedido para análise…');
   try {
