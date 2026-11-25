@@ -1208,7 +1208,8 @@
 .pf-gate-sign { position:absolute; z-index:1; left:50%; top:50%; transform:translate(-50%,-50%); display:grid; justify-items:center; gap:10px; padding:20px 28px 18px; border-radius:10px; background:#1b3a2e; border:2px solid #4c6e5f; box-shadow:0 10px 30px rgb(0 0 0 / 35%); color:#fff; text-align:center; }
 .pf-gate-mark { display:grid; place-items:center; width:46px; height:46px; border-radius:10px; background:#d9f0c4; color:#1b3a2e; font:800 1.6rem Manrope,'DM Sans',sans-serif; }
 .pf-gate-sign b { font:800 1.5rem Manrope,'DM Sans',sans-serif; letter-spacing:-.02em; }
-.pf-gate-sign small { display:flex; align-items:center; gap:8px; color:#cfe0d4; font-size:.9rem; }
+.pf-gate-sign small { display:flex; align-items:center; gap:8px; color:#cfe0d4; font-size:.9rem; white-space:nowrap; }
+.pf-gate-sign i { flex:none; }
 .pf-gate-sign i { width:8px; height:8px; border-radius:50%; background:#d9f0c4; box-shadow:0 0 0 0 rgb(217 240 196 / 60%); }
 @media (prefers-reduced-motion: no-preference) {
   .pf-gate-sign i { animation:pf-gate-light 1.1s ease-in-out infinite; }
