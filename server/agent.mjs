@@ -165,7 +165,8 @@ export function firstMessage(project, files, catalog, houseRules = '') {
       content.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data } });
     } else skipped.push(str(f.name, 120) + ' (formato ou tamanho não suportado)');
   }
-  const fields = Object.entries(project.fields || {}).filter(([, v]) => v !== '' && v != null).map(([k, v]) => `${k}: ${str(String(v), 100)}`);
+  // Valores por omissão do formulário (quantidade 1, tipo "Desenho técnico") não são dados da oficina: não os enviar.
+  const fields = Object.entries(project.fields || {}).filter(([k, v]) => v !== '' && v != null && !(k === 'quantity' && String(v) === '1') && !(k === 'type' && v === 'Desenho técnico')).map(([k, v]) => `${k}: ${str(String(v), 100)}`);
   for (const x of project.extraFields || []) if (x?.label && x?.value) fields.push(`${str(x.label, 80)}: ${str(String(x.value), 200)}`);
   const text = [
     'Pedido do cliente (contactos já retirados):', str(project.request || '', 12000) || '(sem texto; ver anexos)',
