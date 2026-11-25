@@ -38,6 +38,22 @@ function access(mode) {
 // Toda a gente passa pela página de entrada uma vez por sessão do separador; depois, recarregar vai direto à oficina.
 const entered=()=>{try{return sessionStorage.getItem('forja-entered')==='1'}catch{return false}};
 const markEntered=()=>{try{sessionStorage.setItem('forja-entered','1')}catch{}};
+// Portão da oficina: desce ao entrar, fica fechado enquanto a oficina carrega e enrola para cima quando está pronta.
+const calm=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
+async function goIn(){
+  markEntered();
+  try{sessionStorage.setItem('forja-gate','1')}catch{}
+  const g=document.querySelector('#pf-gate'),root=document.documentElement;
+  if(g&&!calm()){root.classList.add('pf-gate-on');g.classList.add('closing');await new Promise(r=>setTimeout(r,620));}
+  location.replace('/');
+}
+function openGate(){
+  try{sessionStorage.removeItem('forja-gate')}catch{}
+  const root=document.documentElement,g=document.querySelector('#pf-gate');
+  if(!root.classList.contains('pf-gate-on')||!g)return;
+  if(calm()){root.classList.remove('pf-gate-on');return;}
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{g.classList.add('opening');setTimeout(()=>{root.classList.remove('pf-gate-on');g.classList.remove('opening');},1000);}));
+}
 function landing(me) {
   root.innerHTML=`<main class="pilot-landing2">
   <header class="pl-top"><div class="pilot-brand"><span>f</span> Forja</div>${me?.user?'<button type="button" class="pl-login-link" data-pilot-action="enter">Entrar na tua oficina</button>':'<a class="pl-login-link" href="#pl-login">Já tenho conta</a>'}</header>
@@ -252,8 +268,7 @@ root.addEventListener('submit',async event=>{
       const data=Object.fromEntries(values);
       if(mode==='activate')data.invite=invite;
       await post('/'+mode,data);
-      markEntered();
-      location.replace('/');
+      await goIn();
     }
   } catch(e) {alertText(e.message);}
   finally {button.disabled=false;}
@@ -267,8 +282,8 @@ root.addEventListener('click',async event=>{
   }
   try {
     if(button.dataset.pilotAction==='logout') await signOut();
-    if(button.dataset.pilotAction==='enter') {markEntered();location.replace('/');return;}
-    if(button.dataset.pilotAction==='demo') {button.disabled=true;try{await post('/demo',{});markEntered();location.replace('/');}finally{button.disabled=false;}}
+    if(button.dataset.pilotAction==='enter') {await goIn();return;}
+    if(button.dataset.pilotAction==='demo') {button.disabled=true;try{await post('/demo',{});await goIn();}finally{button.disabled=false;}}
     if(button.dataset.pilotAction==='refresh') await refreshInbox(true);
     if(button.dataset.pilotAction==='open-file') await openBlob('/admin/files/'+button.dataset.workshop+'/'+encodeURIComponent(button.dataset.id),button.dataset.name);
     if(button.dataset.pilotAction==='send-note') await sendResponse(button.closest('.pilot-drop'));
@@ -408,6 +423,8 @@ try {
   else if(!me.user||!entered())landing(me);
   else if(me.user.role==='admin'){await admin();setInterval(()=>refreshInbox(false).catch(()=>{}),20000);}
   else await workshop();
+  openGate();
 } catch(error) {
+  openGate();
   root.innerHTML=`<main class="pilot-access"><section class="card card-pad"><h1>Não foi possível abrir a Forja</h1><p role="alert">${escape(error.message)}</p><a href="/">Tentar novamente</a></section></main>`;
 }

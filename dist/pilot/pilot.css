@@ -1193,3 +1193,29 @@
   @keyframes pfr-y { 0%,57% { transform:translateY(0); opacity:0; animation-timing-function:cubic-bezier(.2,.7,.4,1); } 58% { opacity:1; } 72% { transform:translateY(var(--up)); animation-timing-function:cubic-bezier(.5,0,.9,.6); } 100% { transform:translateY(var(--down)); opacity:0; } }
   @keyframes pfr-col { 0%,58% { fill:#fffbe6; } 80% { fill:#ffc85a; } 100% { fill:#ff7a2b; } }
 }
+
+/* ===== Portão de enrolar: a transição entre a página inicial e a oficina ===== */
+.pf-gate { display:none; position:fixed; inset:0; z-index:3000; overflow:hidden; pointer-events:none; }
+.pf-gate-on .pf-gate { display:block; pointer-events:auto; }
+.pf-gate-door { position:absolute; inset:0; transform:translateY(0);
+  background:
+    repeating-linear-gradient(180deg, #3a5a4c 0 2px, #2a4a3c 2px 16px, #0f2219 16px 17px, #1c372c 17px 26px, #10241c 26px 28px);
+  background-color:#24443a; box-shadow:inset 0 -6px 0 rgb(0 0 0 / 20%); }
+.pf-gate-door::before { content:''; position:absolute; inset:0; background:linear-gradient(90deg, rgb(0 0 0 / 28%), transparent 18%, transparent 82%, rgb(0 0 0 / 28%)); }
+.pf-gate-door::after { content:''; position:absolute; inset:0; background:linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 7%) 45%, transparent 60%); }
+.pf-gate-lip { position:absolute; left:0; right:0; bottom:0; height:22px; background:linear-gradient(180deg, #5f7d70, #2f4d40 60%, #1a3329); border-top:1px solid #8aa79a; }
+.pf-gate-lip span { position:absolute; left:50%; top:5px; width:84px; height:10px; margin-left:-42px; border-radius:6px; background:linear-gradient(180deg, #e6f3dc, #a9c79a); box-shadow:0 1px 2px rgb(0 0 0 / 40%); }
+.pf-gate-sign { position:absolute; z-index:1; left:50%; top:50%; transform:translate(-50%,-50%); display:grid; justify-items:center; gap:10px; padding:20px 28px 18px; border-radius:10px; background:#1b3a2e; border:2px solid #4c6e5f; box-shadow:0 10px 30px rgb(0 0 0 / 35%); color:#fff; text-align:center; }
+.pf-gate-mark { display:grid; place-items:center; width:46px; height:46px; border-radius:10px; background:#d9f0c4; color:#1b3a2e; font:800 1.6rem Manrope,'DM Sans',sans-serif; }
+.pf-gate-sign b { font:800 1.5rem Manrope,'DM Sans',sans-serif; letter-spacing:-.02em; }
+.pf-gate-sign small { display:flex; align-items:center; gap:8px; color:#cfe0d4; font-size:.9rem; }
+.pf-gate-sign i { width:8px; height:8px; border-radius:50%; background:#d9f0c4; box-shadow:0 0 0 0 rgb(217 240 196 / 60%); }
+@media (prefers-reduced-motion: no-preference) {
+  .pf-gate-sign i { animation:pf-gate-light 1.1s ease-in-out infinite; }
+  .pf-gate.closing .pf-gate-door { animation:pf-gate-down .6s cubic-bezier(.55,0,.85,.45) both; }
+  .pf-gate.opening .pf-gate-door { animation:pf-gate-up .95s cubic-bezier(.45,0,.2,1) both; }
+}
+@keyframes pf-gate-down { 0% { transform:translateY(-100%); } 82% { transform:translateY(0); } 90% { transform:translateY(-10px); } 100% { transform:translateY(0); } }
+@keyframes pf-gate-up { 0% { transform:translateY(0); } 12% { transform:translateY(6px); } 100% { transform:translateY(-102%); } }
+@keyframes pf-gate-light { 0%,100% { box-shadow:0 0 0 0 rgb(217 240 196 / 55%); } 50% { box-shadow:0 0 0 6px rgb(217 240 196 / 0%); } }
+@media print { .pf-gate { display:none !important; } }

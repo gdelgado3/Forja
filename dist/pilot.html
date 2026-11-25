@@ -6,9 +6,11 @@
 <title>Forja · A minha oficina</title>
 <link rel="stylesheet" href="/style.css">
 <link rel="stylesheet" href="/pilot/pilot.css">
+<script>try{if(sessionStorage.getItem('forja-gate'))document.documentElement.classList.add('pf-gate-on')}catch(e){}</script>
 </head>
 <body class="pilot-mode">
 <div id="app"><main class="pilot-access"><p role="status">A abrir a Forja…</p></main></div>
+<div id="pf-gate" class="pf-gate" aria-hidden="true"><div class="pf-gate-door"><div class="pf-gate-sign"><span class="pf-gate-mark">f</span><b>Forja</b><small><i></i>A abrir a oficina…</small></div><div class="pf-gate-lip"><span></span></div></div></div>
 <dialog id="modal"></dialog><div id="toast" role="status"></div>
 <script type="module" src="/pilot/start.mjs"></script>
 </body>
